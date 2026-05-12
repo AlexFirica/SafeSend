@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style href="backend/login/style.css"></style>
+  <title>SafeSend Login</title>
+</head>
+<body>
+  <div class="login">
+    <h2>SafeSend Login</h2>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button onclick="openIt()" type="submit">Login</button>
+    </form>
+    <div id="errorMsg" class="error"></div>
+  </div>
+  <script src="backend/src/login/login.js"></script>
+</body>
+</html>
