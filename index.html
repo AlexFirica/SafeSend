@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style href="backend/login/style.css"></style>
+  <link rel="stylesheet" href="styleLogin.css">
   <title>SafeSend Login</title>
 </head>
 <body>
@@ -12,7 +12,8 @@
     <form id="loginForm">
       <input type="email" id="email" placeholder="Email" required>
       <input type="password" id="password" placeholder="Password" required>
-      <button onclick="openIt()" type="submit">Login</button>
+      <button onclick="openItDashboard()" type="submit">Login</button>
+      <button onclick="openItRegister()" type="button">Register</button>
     </form>
     <div id="errorMsg" class="error"></div>
   </div>
