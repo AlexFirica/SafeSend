@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSend Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>SafeSend</h2>
+            <nav>
+                <button class="nav-btn active">Dashboard</button>
+                <button class="nav-btn">Setări</button>
+            </nav>
+<div class="user-info">
+    <p>ID-ul tău:</p>
+    <code id="my-id-display">Se încarcă...</code>
+    <p>Cheia ta publică:</p>
+    <textarea class="exported-key" readonly rows="4"></textarea>
+</div>
+        </aside>
+
+        <main class="content">
+            <header>
+                <h1>Fișierele mele</h1>
+                <div id="message" class="status-msg"></div>
+            </header>
+
+            <section class="send-section">
+                <h3>Trimite un fișier nou</h3>
+                <div class="send-controls">
+                    <select id="recipientSelect">
+                        <option value="" disabled selected>Selectează Destinatar</option>
+                        <option value="angajat_it">Manager IT (Bogdan)</option>
+                        <option value="manager_hr">HR (Alina)</option>
+                        <option value="ceo_office">CEO Office</option>
+                    </select>
+                    
+                    <label for="fileInput" class="custom-file-upload">
+                        Alege fișier
+                    </label>
+                    <input type="file" id="fileInput">
+                    
+                    <span id="file-name-display">Niciun fișier selectat</span>
+<button id="sendBtn">Trimite</button>
+                </div>
+            </section>
+
+            <section class="files-grid" id="files-grid">
+                <div class="empty-state">Nu ai primit niciun fișier încă.</div>
+            </section>
+        </main>
+    </div>
+    <script src="backend/src/config/test.js"></script>
+    <script src="backend/src/backendAPI.js" type="application/json"></script>
+</body>
+</html>
