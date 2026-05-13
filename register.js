@@ -1,13 +1,26 @@
-import * as DB from "db_manager.js";
+import * as DB from "./backend/db_manager.js";
 
-document.getElementById('submit').addEventListener('click', submit);
+const submitBtn = document.getElementById("submit");
 
-var email = document.getElementById("Email")
-var parola = document.getElementById("Parola")
+submitBtn.addEventListener("click", submit);
 
 async function submit() {
-	if (email.value == "" || parola.value == "")
-		return;
+    const email = document.getElementById("email").value;
+    const parola = document.getElementById("password").value;
 
-	location.href = "index.html"
+    if (email === "" || parola === "") {
+        alert("Fill all fields");
+        return;
+    }
+
+    // MODIFY: Store the result of the function call
+    const result = await DB.generateProfile(email, parola);
+
+    // MODIFY: Add logic to check if it actually worked
+    if (result && result.success) {
+        alert("Account created");
+        location.href = "index.html"; 
+    } else {
+        alert("Failed to create account: " + (result?.error || "Unknown error"));
+    }
 }
