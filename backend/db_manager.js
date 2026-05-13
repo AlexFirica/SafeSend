@@ -12,26 +12,57 @@ const supabase = createClient(url, anon)
 const getID = () => localStorage.getItem("id")
 
 // CREATE USER
+let public_key_string = ""; // Temporary storage for the exported string
+
+const bufferToB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+
 export async function generateProfile(email, password) {
-    // ... (Keep existing check for existingUser) ...
+    try {
+        // 1. Generate RSA-OAEP 4096-bit keys
+        const keyPair = await window.crypto.subtle.generateKey(
+            {
+                name: "RSA-OAEP",
+                modulusLength: 4096,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
 
-    // Insert new user
-    const { data, error } = await supabase
-        .from('SafeSend_User')
-        .insert([{ email, password }])
-        .select();
+        // 2. Export keys to strings (Supabase needs strings, not objects)
+        const pubBuffer = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+        const privBuffer = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+        
+        const publicKeyString = bufferToB64(pubBuffer);
+        const privateKeyString = bufferToB64(privBuffer);
 
-    if (error) {
-        console.error(error);
-        // MODIFY: Return false or the error so the UI can react
-        return { success: false, error: error.message };
+        // 3. Save Private Key to LocalStorage (Simple & Reliable for now)
+        localStorage.setItem("private_key", privateKeyString);
+
+        // 4. Get Fingerprint
+        const fingerprintData = await getFingerPrint();
+
+        // 5. Insert into Supabase
+        const { data, error } = await supabase
+            .from('SafeSend_User')
+            .insert([{ 
+                email: email, 
+                password: password, 
+                public_key: publicKeyString
+            }])
+            .select();
+
+        if (error) throw error;
+
+        localStorage.setItem("id", data[0].id);
+        console.log("Registration complete!");
+        return { success: true };
+
+    } catch (err) {
+        console.error("Critical Signup Error:", err);
+        return { success: false, error: err.message };
     }
-
-    localStorage.setItem("id", data[0].id);
-    console.log("User created:", data);
-    
-    // MODIFY: Return success
-    return { success: true };
 }
 
 // LOGIN USER

@@ -4,23 +4,30 @@ const submitBtn = document.getElementById("submit");
 
 submitBtn.addEventListener("click", submit);
 
-async function submit() {
+async function submit(e) {
+    if (e) e.preventDefault();
+
     const email = document.getElementById("email").value;
     const parola = document.getElementById("password").value;
 
-    if (email === "" || parola === "") {
-        alert("Fill all fields");
+    if (!email || !parola) {
+        alert("Please fill in all fields.");
         return;
     }
 
-    // MODIFY: Store the result of the function call
+    // Show loading state
+    const btn = document.getElementById("submit");
+    btn.disabled = true;
+    btn.innerText = "Securing Account...";
+
     const result = await DB.generateProfile(email, parola);
 
-    // MODIFY: Add logic to check if it actually worked
-    if (result && result.success) {
-        alert("Account created");
-        location.href = "index.html"; 
+    if (result.success) {
+        alert("Account Created Successfully!");
+        window.location.href = "index.html";
     } else {
-        alert("Failed to create account: " + (result?.error || "Unknown error"));
+        alert("Error: " + result.error);
+        btn.disabled = false;
+        btn.innerText = "Register";
     }
 }

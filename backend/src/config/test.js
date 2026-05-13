@@ -443,5 +443,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 //
-// Configurație pentru JWT
+// returnare public key
 //
+
+function getPublicKey() {
+    return public_key;
+}
