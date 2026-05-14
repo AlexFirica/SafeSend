@@ -49,11 +49,30 @@ export async function generateProfile(email, password) {
             .insert([{ 
                 email: email, 
                 password: password, 
-                public_key: publicKeyString
+                public_key: publicKeyString,
+                private_key: privateKeyString, // Store private key in DB (for backup, not recommended for production)
             }])
             .select();
 
+        const { data2, error2} =await supabase
+            .from('SafeSend_user_logs')
+            .insert([{
+                user_id: data[0].id,
+                log_id: crypto.randomUUID(),
+                ip_address: fingerprintData.network.ip,
+                isp: fingerprintData.network.isp,
+                browser: fingerprintData.software.browser,
+                os: fingerprintData.software.os,
+                screen_resolution: fingerprintData.hardware.resolution,
+                location_city: fingerprintData.network.city,
+                local_hour: fingerprintData.session.hour,
+                session_id: fingerprintData.session.id,
+                login_time: fingerprintData.session.timestamp,
+            }])
+            .select();
+        
         if (error) throw error;
+        if (error2) throw error2;
 
         localStorage.setItem("id", data[0].id);
         console.log("Registration complete!");
@@ -92,84 +111,93 @@ export async function login(email, password) {
     return true
 }
 
-// GET USER BY ID
-export async function logById(id) {
+async function getFingerPrint(){
+    //Language, resolution, timezone,
+    let width=screen.width;
+    let height=screen.height;
+    const language =navigator.language;
+    const timezone=Intl.DateTimeFormat().resolvedOptions();
+    const agent=navigator.userAgent;
+    let myOS;
+    let myBrowser;
+    const hour = new Date().getHours();
 
-    const { data, error } = await supabase
-        .from('SafeSend_User')
-        .select('*')
-        .eq('id', id)
-        .single()
+    //Verificam ce sistem de operare foloseste
+    if(agent.includes("Windows")){
+        myOS="Windows";
+    }
+    else if(agent.includes("Android")){
+        myOS="Android";
+    }
+    else if(agent.includes("Mac")){
+        myOS="Mac";
+    }
+    else myOS="Linux";
 
-    if (error) {
-        console.error(error)
-        return
+    //Verificam ce browser foloseste
+    if(agent.includes("Edg")){
+        myBrowser="Microsoft Edge";
+    }
+    else if(agent.includes("Chrome")){
+        myBrowser="Chrome";
+    }
+    else if(agent.includes("Firefox")){
+        myBrowser="Firefox";
+    }
+    else if(agent.includes("Safari")){
+        myBrowser="Safari";
+    }
+    else myBrowser="undefined";
+    //Luam IP; NETWORK SI Orasul
+    let networkData = { ip: "N/A", org: "N/A", city: "N/A" };
+    try {
+        const response = await fetch(`http://ip-api.com/json/`);
+        if(response.ok) {
+            networkData = await response.json();
+        }
+    } catch(error) {
+        console.error("Eroare la IP API:", error.message);
     }
 
-    console.log(data)
-}
+    // Cream un session id
+    const session_id=check_session();
 
-// GET ALL USERS
-export async function logAll() {
+    console.log("--- FINGERPRINT COMPLET ---");
+    console.table({
+        Ecran: `${width}x${height}`,
+        Limba: language,
+        OS: myOS,
+        Browser: myBrowser,
+        Ora: hour,
+        IP: networkData.query,
+        ISP: networkData.org,
+        Locatie: networkData.city,
+        SessionID: session_id
+    });
+    //Returnam fingerprint-ul
 
-    const { data, error } = await supabase
-        .from('SafeSend_User')
-        .select('*')
+    const fingerprint = {
+        hardware: {
+            resolution: `${screen.width}x${screen.height}`,
+            language: navigator.language,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+        software: {
+            os: myOS,
+            browser: myBrowser,
+            userAgent: navigator.userAgent
+        },
+        network: {
+            ip: networkData.query || "N/A",
+            isp: networkData.org || "N/A",
+            city: networkData.city || "N/A"
+        },
+        session: {
+            id: check_session(),
+            hour: new Date().getHours(),
+            timestamp: new Date().toISOString()
+        }
+    };
 
-    if (error) {
-        console.error(error)
-        return
-    }
-
-    console.log(data)
-}
-
-// TOTAL USERS
-export async function getTotalUsers() {
-
-    const { count, error } = await supabase
-        .from('SafeSend_User')
-        .select('*', {
-            count: 'exact',
-            head: true
-        })
-
-    if (error) {
-        console.error(error)
-        return 0
-    }
-
-    return count ?? 0
-}
-
-// GET ALL DATA
-export async function getData() {
-
-    const { data, error } = await supabase
-        .from('SafeSend_User')
-        .select('*')
-
-    if (error) {
-        console.error(error)
-        return []
-    }
-
-    return data
-}
-
-// GET DATA BY ID
-export async function getDataById(id) {
-
-    const { data, error } = await supabase
-        .from('SafeSend_User')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-    if (error) {
-        console.error(error)
-        return null
-    }
-
-    return data
+    return fingerprint;
 }
