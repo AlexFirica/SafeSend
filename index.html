@@ -3,20 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="styleLogin.css">
+
   <title>SafeSend Login</title>
 </head>
+
 <body>
-  <div class="login">
-    <h2>SafeSend Login</h2>
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <button id="loginBtn" type="submit">Login</button>
-     <button id="registerBtn" type="button">Register</button>
-    </form>
-    <div id="errorMsg" class="error"></div>
+
+  <div class="container">
+
+    <div class="login-card">
+
+      <h1>SafeSend</h1>
+
+      <p class="subtitle">
+        Secure Login System
+      </p>
+
+      <form id="loginForm">
+
+        <div class="input-box">
+          <input
+            type="email"
+            id="email"
+            placeholder="Email"
+            required
+          >
+        </div>
+
+        <div class="input-box">
+          <input
+            type="password"
+            id="password"
+            placeholder="Password"
+            required
+          >
+        </div>
+
+        <button id="loginBtn" type="submit">
+          Login
+        </button>
+
+        <button id="registerBtn" type="button">
+          Create Account
+        </button>
+
+      </form>
+
+      <div id="errorMsg" class="error"></div>
+
+    </div>
+
   </div>
-  <script type="module" src="./backend/src/login/login.js"></script>
+  <div class="flower left-flower"></div>
+  <div class="flower right-flower"></div>
+  <script
+    type="module"
+    src="./backend/src/login/login.js">
+  </script>
+
 </body>
 </html>

@@ -1,0 +1,320 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+    position:relative;
+
+    background:
+    linear-gradient(
+        135deg,
+        #4facfe,
+        #00f2fe
+    );
+}
+
+/* Left glow */
+body::before{
+
+    content:"";
+
+    position:absolute;
+
+    width:300px;
+    height:300px;
+
+    background:white;
+
+    border-radius:50%;
+
+    top:50%;
+    left:-150px;
+
+    transform:translateY(-50%);
+
+    opacity:0.35;
+
+    filter:blur(90px);
+}
+
+/* Right glow */
+body::after{
+
+    content:"";
+
+    position:absolute;
+
+    width:300px;
+    height:300px;
+
+    background:white;
+
+    border-radius:50%;
+
+    top:50%;
+    right:-150px;
+
+    transform:translateY(-50%);
+
+    opacity:0.35;
+
+    filter:blur(90px);
+}
+
+.container{
+    width:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.login-card{
+
+    width:350px;
+
+    padding:40px;
+
+    border-radius:20px;
+
+    background:rgba(255,255,255,0.15);
+
+    backdrop-filter:blur(15px);
+
+    box-shadow:
+    0 8px 32px rgba(0,0,0,0.2);
+
+    border:
+    1px solid rgba(255,255,255,0.2);
+
+    text-align:center;
+
+    color:white;
+}
+
+.login-card h1{
+    font-size:32px;
+    margin-bottom:10px;
+}
+
+.subtitle{
+    margin-bottom:30px;
+    opacity:0.8;
+}
+
+.input-box{
+    margin-bottom:20px;
+}
+
+.input-box input{
+
+    width:100%;
+
+    padding:14px;
+
+    border:none;
+
+    outline:none;
+
+    border-radius:12px;
+
+    background:
+    rgba(255,255,255,0.2);
+
+    color:white;
+
+    font-size:15px;
+}
+
+.input-box input::placeholder{
+    color:rgba(255,255,255,0.7);
+}
+
+button{
+
+    width:100%;
+
+    padding:14px;
+
+    border:none;
+
+    border-radius:12px;
+
+    font-size:16px;
+
+    cursor:pointer;
+
+    transition:0.3s;
+}
+
+#loginBtn{
+
+    background:white;
+
+    color:#070fec;
+
+    margin-bottom:15px;
+
+    font-weight:bold;
+}
+
+#loginBtn:hover{
+
+    transform:translateY(-2px);
+
+    background:#f0f0f0;
+}
+
+#registerBtn{
+
+    background:transparent;
+
+    border:1px solid white;
+
+    color:white;
+}
+
+#registerBtn:hover{
+
+    background:white;
+
+    color:#2196f3;
+}
+
+.error{
+
+    margin-top:15px;
+
+    color:#ffb3b3;
+
+    font-size:14px;
+}
+
+/* FLOWERS */
+
+.flower{
+
+    position:absolute;
+
+    width:140px;
+
+    height:140px;
+
+    z-index:1;
+}
+
+/* LEFT FLOWER */
+
+.left-flower{
+
+    left:40px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+}
+
+/* RIGHT FLOWER */
+
+.right-flower{
+
+    right:40px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+}
+
+/* PETALS */
+
+.flower::before,
+.flower::after{
+
+    content:"";
+
+    position:absolute;
+
+    width:70px;
+
+    height:70px;
+
+    background:
+    rgba(255,255,255,0.8);
+
+    border-radius:50%;
+}
+
+/* Flower petals */
+
+.flower::before{
+
+    top:0;
+
+    left:35px;
+
+    box-shadow:
+    0 70px rgba(255,255,255,0.8),
+    -35px 35px rgba(255,255,255,0.8),
+    35px 35px rgba(255,255,255,0.8);
+}
+
+/* Flower center */
+
+.flower::after{
+
+    width:40px;
+
+    height:40px;
+
+    background:#ffd54f;
+
+    top:50px;
+
+    left:50px;
+}
+
+/* Floating animation */
+
+@keyframes float{
+
+    0%{
+        transform:
+        translateY(-50%)
+        rotate(0deg);
+    }
+
+    50%{
+        transform:
+        translateY(-54%)
+        rotate(5deg);
+    }
+
+    100%{
+        transform:
+        translateY(-50%)
+        rotate(0deg);
+    }
+}
+
+.left-flower,
+.right-flower{
+
+    animation:
+    float 4s ease-in-out infinite;
+}
+
+.register-card,
+.login-card{
+
+    position:relative;
+
+    z-index:2;
+}

@@ -1,24 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <link rel="stylesheet" href="styleRegister.css">
+
   <title>SafeSend Register</title>
+
 </head>
+
 <body>
-  
-  <div class="register">
-    <h2>SafeSend Register</h2>
-    <div id="registerForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <button id="submit">Register</button>
+
+  <div class="container">
+
+    <div class="register-card">
+
+      <h1>SafeSend</h1>
+
+      <p class="subtitle">
+        Create Your Account
+      </p>
+
+      <div id="registerForm">
+
+        <div class="input-box">
+          <input
+            type="email"
+            id="email"
+            placeholder="Email"
+            required
+          >
+        </div>
+
+        <div class="input-box">
+          <input
+            type="password"
+            id="password"
+            placeholder="Password"
+            required
+          >
+        </div>
+
+        <button id="submit">
+          Register
+        </button>
+
+      </div>
+
+      <p class="login-text">
+        Already have an account?
+        <a href="index.html">
+          Login
+        </a>
+      </p>
+
     </div>
+
   </div>
-  
-  <script src="backend/src/config/test.js"></script>
-  <script type="module" src="./register.js"></script>
+<div class="flower left-flower"></div>
+<div class="flower right-flower"></div>
+  <script
+    src="backend/src/config/test.js">
+  </script>
+
+  <script
+    type="module"
+    src="./register.js">
+  </script>
 
 </body>
+
 </html>
