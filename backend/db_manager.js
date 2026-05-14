@@ -41,46 +41,63 @@ export async function generateProfile(email, password) {
         localStorage.setItem("private_key", privateKeyString);
 
         // 4. Get Fingerprint
-        const fingerprintData = await getFingerPrint();
+        const fingerprintData = await getFingerPrint(); 
 
-        // 5. Insert into Supabase
+        // 5. Insert into SafeSend_User
         const { data, error } = await supabase
             .from('SafeSend_User')
             .insert([{ 
                 email: email, 
                 password: password, 
                 public_key: publicKeyString,
-                private_key: privateKeyString, // Store private key in DB (for backup, not recommended for production)
+                private_key: privateKeyString
             }])
-            .select();
+            .select(); // IMPORTANT: select() ne returnează rândul creat, inclusiv ID-ul generat
 
-        const { data2, error2} =await supabase
-            .from('SafeSend_user_logs')
-            .insert([{
-                user_id: data[0].id,
-                log_id: crypto.randomUUID(),
-                ip_address: fingerprintData.network.ip,
-                isp: fingerprintData.network.isp,
-                browser: fingerprintData.software.browser,
-                os: fingerprintData.software.os,
-                screen_resolution: fingerprintData.hardware.resolution,
-                location_city: fingerprintData.network.city,
-                local_hour: fingerprintData.session.hour,
-                session_id: fingerprintData.session.id,
-                login_time: fingerprintData.session.timestamp,
-            }])
-            .select();
-        
         if (error) throw error;
-        if (error2) throw error2;
 
-        localStorage.setItem("id", data[0].id);
-        console.log("Registration complete!");
+        // Luăm ID-ul utilizatorului proaspăt creat
+        const newUser = data[0];
+        localStorage.setItem("id", newUser.id);
+
+        // --- AICI ESTE ADAUGAREA ---
+        // Salvăm log-ul de înregistrare în SafeSend_user_logs
+        await saveLog(newUser.id);
+        // ---------------------------
+
+        console.log("Registration complete and log saved!");
         return { success: true };
 
     } catch (err) {
         console.error("Critical Signup Error:", err);
         return { success: false, error: err.message };
+    }
+
+}
+
+async function saveLog(userId) {
+    try {
+        const fp = await getFingerPrint();
+
+        const { error } = await supabase
+            .from('SafeSend_user_logs')
+            .insert([{
+                user_id: userId,
+                ip_address: fp.network.ip,
+                isp: fp.network.isp,
+                browser: fp.software.browser,
+                os: fp.software.os,
+                screen_resolution: fp.hardware.resolution,
+                location_city: fp.network.city,
+                local_hour: fp.session.hour,
+                session_id: fp.session.id
+                // login_time se pune automat (now()) din baza de date
+            }]);
+
+        if (error) throw error;
+        console.log("Log de activitate creat pentru utilizatorul:", userId);
+    } catch (err) {
+        console.error("Eroare la salvarea log-ului:", err.message);
     }
 }
 
