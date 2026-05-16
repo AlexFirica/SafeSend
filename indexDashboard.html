@@ -34,6 +34,10 @@
                 <div class="send-controls">
                     <select id="recipientSelect">
                         <option value="" disabled selected>Selectează Destinatar</option>
+<<<<<<< HEAD
+=======
+                        
+>>>>>>> f4a89846f07adc1a2bdf8f1b369d3f5afd8df94f
                     </select>
                     
                     <label for="fileInput" class="custom-file-upload">
@@ -55,7 +59,11 @@
     <script src="testareid.js"></script>
     <script src="backend/src/backendAPI.js" type="application/json"></script>
     <script type="module">
+<<<<<<< HEAD
     import { loadRecipients, getRecipientPublicKey, sendToSupabase } from '/db_manager.js';
+=======
+    import { loadRecipients, getRecipientPublicKey, sendToSupabase } from './backend/db_manager.js';
+>>>>>>> f4a89846f07adc1a2bdf8f1b369d3f5afd8df94f
     
     // Make these available to test.js (which isn't a module)
     window.getRecipientPublicKey = getRecipientPublicKey;
