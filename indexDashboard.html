@@ -34,9 +34,6 @@
                 <div class="send-controls">
                     <select id="recipientSelect">
                         <option value="" disabled selected>Selectează Destinatar</option>
-                        <option value="angajat_it">Manager IT (Bogdan)</option>
-                        <option value="manager_hr">HR (Alina)</option>
-                        <option value="ceo_office">CEO Office</option>
                     </select>
                     
                     <label for="fileInput" class="custom-file-upload">
@@ -55,6 +52,21 @@
         </main>
     </div>
     <script src="backend/src/config/test.js"></script>
+    <script src="testareid.js"></script>
     <script src="backend/src/backendAPI.js" type="application/json"></script>
+    <script type="module">
+    import { loadRecipients, getRecipientPublicKey, sendToSupabase } from '/db_manager.js';
+    
+    // Make these available to test.js (which isn't a module)
+    window.getRecipientPublicKey = getRecipientPublicKey;
+    window.sendToSupabase        = sendToSupabase;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        await loadRecipients();
+        renderDashboard();
+        document.getElementById("my-id-display").textContent =
+            (localStorage.getItem("id") || "N/A").substring(0, 13) + "...";
+    });
+</script>
 </body>
 </html>
