@@ -131,3 +131,75 @@ select, .custom-file-upload {
     margin-top: 5px;
     box-sizing: border-box;
 }
+
+.files-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.file-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-icon {
+    font-size: 24px;
+}
+
+.file-details h4 {
+    margin: 0 0 4px 0;
+    color: #1e293b;
+}
+
+.file-details p {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.security-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-green { background-color: #dcfce7; color: #15803d; }
+.badge-yellow { background-color: #fef9c3; color: #a16207; }
+.badge-red { background-color: #fee2e2; color: #b91c1c; }
+.badge-gray { background-color: #f1f5f9; color: #475569; }
+
+.download-btn {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.download-btn:hover {
+    background-color: #1d4ed8;
+}

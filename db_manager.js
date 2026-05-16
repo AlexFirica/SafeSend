@@ -36,30 +36,35 @@ async function getFingerPrint() {
     else if (agent.includes("Firefox")) myBrowser = "Firefox"
     else if (agent.includes("Safari"))  myBrowser = "Safari"
 
-    let networkData = { query: "N/A", org: "N/A", city: "N/A" }
-    try {
-        const r = await fetch("http://ip-api.com/json/")
-        if (r.ok) networkData = await r.json()
-    } catch(e) { console.warn("IP API unavailable") }
-
-    return {
-        hardware: {
-            resolution: `${screen.width}x${screen.height}`,
-            language:   navigator.language,
-            timezone:   Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        software: { os: myOS, browser: myBrowser },
-        network:  {
-            ip:   networkData.query || "N/A",
-            isp:  networkData.org   || "N/A",
-            city: networkData.city  || "N/A"
-        },
-        session:  {
-            id:        check_session(),
-            hour:      new Date().getHours(),
-            timestamp: new Date().toISOString()
-        }
+   let networkData = { query: "127.0.0.1", org: "N/A", city: "N/A", country: "Romania" };
+try {
+    const response = await fetch(`http://ip-api.com/json/`);
+    if (response.ok) {
+        networkData = await response.json();
     }
+} catch (error) {
+    console.warn("IP API location lookup timed out.");
+}
+
+return {
+    hardware: {
+        resolution: `${screen.width}x${screen.height}`,
+        language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    },
+    software: { os: myOS, browser: myBrowser },
+    network: {
+        ip: networkData.query || "127.0.0.1",
+        isp: networkData.org || "N/A",
+        city: networkData.city || "N/A",
+        country: networkData.country || "Romania" // <-- Add this tracking line
+    },
+    session: {
+        id: check_session(),
+        hour: new Date().getHours(),
+        timestamp: new Date().toISOString()
+    }
+};
 }
 
 // ─── AUTH ──────────────────────────────────────────────────────────────────
@@ -213,6 +218,7 @@ export async function loadReceivedFiles() {
     if (error) { console.error("loadReceivedFiles error:", error.message); return [] }
     return data
 }
+
 export async function decryptAndDownload(fileRecord) {
     try {
         const privateKeyB64 = localStorage.getItem("private_key");
@@ -256,4 +262,4 @@ export async function decryptAndDownload(fileRecord) {
         console.error("❌ Decrypt error:", err);
         alert("Eroare la decriptare: " + err.message);
     }
-}
+} 

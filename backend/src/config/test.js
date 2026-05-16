@@ -351,36 +351,68 @@ function arrayBufferToBase64(buffer) {
     return window.btoa(binary);
 }
 
-async function sendToBackend(payload) {
-    console.log("📤 Se trimite pachetul către Colegul 2...");
+// Add or rewrite this inside your file selection script (e.g., test.js)
+
+window.sendToSupabase = async function(payload) {
+    const senderId = localStorage.getItem("id");
+    
+    // Safety check: ensure values are never missing or malformed
+    if (!senderId || !payload.recipient) {
+        alert("Eroare: Lipsesc ID-urile de autentificare (Sender/Recipient).");
+        return;
+    }
+
+    // Explicitly parse layout values matching models.FileUploadPayload 1:1
+    const backendPayload = {
+        sender_id: String(senderId),
+        recipient_id: String(payload.recipient),
+        file_name: String(payload.fileName || "unnamed_file"),
+        encrypted_file: String(payload.encryptedFile),
+        encrypted_key: String(payload.encryptedKey),
+        iv: String(payload.iv),
+        fingerprint: {
+            employee_id: String(senderId),
+            ip: String(payload.fingerprint.network.ip || "127.0.0.1"),
+            // Extract properly from network object layout parameters
+            country: String(payload.fingerprint.network.country || "Romania"), 
+            city: String(payload.fingerprint.network.city || "Unknown City"),
+            isp: String(payload.fingerprint.network.isp || "Local Provider"),
+            browser: String(payload.fingerprint.software.browser || "Unknown Browser"),
+            os: String(payload.fingerprint.software.os || "Unknown OS"),
+            timezone: String(payload.fingerprint.hardware.timezone || "Europe/Bucharest"),
+            screen_resolution: String(payload.fingerprint.hardware.resolution || "1920x1080"),
+            // Format time accurately matching your python backend parsing rules: "YYYY-MM-DD HH:MM"
+            login_time: new Date().toISOString().replace('T', ' ').substring(0, 16)
+        }
+    };
+
+    console.log("Sending payload to AI Engine:", JSON.stringify(backendPayload, null, 2));
 
     try {
-        const response = await fetch("http://localhost:3000/upload", {
+        const response = await fetch("http://127.0.0.1:8000/upload-secure-file", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
-                // Aici Colegul 2 ar putea cere și un Token de autentificare:
-                // "Authorization": "Bearer TOKEN_DE_LA_COLEGUL_2"
             },
-            body: JSON.stringify(payload) 
+            body: JSON.stringify(backendPayload)
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            console.log("✅ Serverul a primit fișierul:", result);
-            showMessage("Fișierul a fost trimis cu succes la server!", "success");
-        } else {
-            throw new Error("Serverul a refuzat pachetul. Status: " + response.status);
+        if (!response.ok) {
+            const errDetails = await response.json();
+            console.error("FastAPI Validation Details Error:", errDetails);
+            throw new Error(JSON.stringify(errDetails.detail || errDetails));
         }
-    } catch (error) {
-        console.error("❌ Eroare la trimitere:", error);
         
-        // MOMENTAN: Dacă nu ai serverul pornit, va da eroare. 
-        // Putem simula un răspuns pozitiv pentru test:
-        console.warn("⚠️ Notă: Nu am găsit serverul la localhost:3000. Verifică dacă Colegul 2 a pornit Backend-ul.");
-        showMessage("Eroare de conexiune (Serverul Colegului 2 nu e pornit)", "error");
+        const result = await response.json();
+        console.log("Success result:", result);
+        return result;
+
+    } catch (error) {
+        console.error("Transmission failed validation:", error);
+        alert("Eroare la procesarea backend: " + error.message);
+        throw error;
     }
-}
+};
 
 // Funcție necesară pentru a transforma Base64 înapoi în biți
 function base64ToArrayBuffer(base64) {

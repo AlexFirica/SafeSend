@@ -55,18 +55,71 @@
     <script src="testareid.js"></script>
     <script src="backend/src/backendAPI.js" type="application/json"></script>
     <script type="module">
-    import { loadRecipients, getRecipientPublicKey, sendToSupabase } from '/db_manager.js';
+    import { loadRecipients, getRecipientPublicKey, loadReceivedFiles, decryptAndDownload } from '/db_manager.js';
     
-    // Make these available to test.js (which isn't a module)
     window.getRecipientPublicKey = getRecipientPublicKey;
-    window.sendToSupabase        = sendToSupabase;
 
     window.addEventListener('DOMContentLoaded', async () => {
         await loadRecipients();
-        renderDashboard();
-        document.getElementById("my-id-display").textContent =
-            (localStorage.getItem("id") || "N/A").substring(0, 13) + "...";
+        
+        // Show truncated version of local client identity
+        const myId = localStorage.getItem("id") || "N/A";
+        document.getElementById("my-id-display").textContent = myId.substring(0, 13) + "...";
+        
+        // Load exclusively user files & update display interface grid
+        await renderDashboard();
     });
+
+    async function renderDashboard() {
+        const grid = document.getElementById("files-grid");
+        grid.innerHTML = ""; // Clear placeholder loading elements
+
+        try {
+            // Fetch records where receiver_id == authenticated user
+            const files = await loadReceivedFiles();
+
+            if (!files || files.length === 0) {
+                grid.innerHTML = '<div class="empty-state">Nu ai primit niciun fișier încă.</div>';
+                return;
+            }
+
+            files.forEach(file => {
+                const card = document.createElement("div");
+                card.className = "file-card";
+                
+                // Color configuration mapping based on the AI Risk Label
+                let colorClass = "badge-gray";
+                if (file.ai_label === "Green") colorClass = "badge-green";
+                if (file.ai_label === "Yellow") colorClass = "badge-yellow";
+                if (file.ai_label === "Red") colorClass = "badge-red";
+
+                card.innerHTML = `
+                    <div class="file-info">
+                        <span class="file-icon">📄</span>
+                        <div class="file-details">
+                            <h4>${file.file_name || 'Fișier Protejat'}</h4>
+                            <p>Primit la: ${new Date(file.upload_date).toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div class="security-status">
+                        <span class="badge ${colorClass}">Scor: ${file.ai_risk_score ?? 'N/A'}/100 (${file.ai_label || 'Incert'})</span>
+                        <button class="download-btn" id="dl-${file.file_id}">Descarcă</button>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+
+                // Attach cryptographic decryption trigger execution maps
+                document.getElementById(`dl-${file.file_id}`).addEventListener("click", async () => {
+                    await decryptAndDownload(file);
+                });
+            });
+
+        } catch (error) {
+            console.error("Dashboard render failed:", error);
+            grid.innerHTML = '<div class="empty-state" style="color: red;">Eroare la încărcarea fișierelor.</div>';
+        }
+    }
 </script>
 </body>
 </html>

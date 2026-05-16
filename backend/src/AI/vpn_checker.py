@@ -1,3 +1,4 @@
+# vpn_checker.py
 def check_ip(ip: str):
 
     bad_ips = [
