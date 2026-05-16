@@ -2,6 +2,7 @@
 //db=conexiunea cu baza de date din broswers
 //public_key
 //private_key
+//test.js
 
 let db;
 let public_key;
@@ -296,7 +297,7 @@ try {
         
             // 3. LOGICA DE DESTINATAR (Pasul 2)
             const recipientId = document.getElementById("recipientSelect").value;
-            const recipientPubKey = await getRecipientPublicKey(recipientId);
+            const recipientPubKey = await window.getRecipientPublicKey(recipientId);
 
             // 4. Încuiem cheia AES cu cheia RSA a destinatarului
             const encryptedAesKey = await window.crypto.subtle.encrypt(
@@ -317,7 +318,7 @@ try {
             };
 
             console.log("🚀 TOTUL ESTE GATA:", finalPayload);
-            await sendToBackend(finalPayload);
+            await window.sendToSupabase(finalPayload);
             showMessage("Succes! Fișierul a fost criptat și amprentat.", "success");
 
         } catch (err) {
