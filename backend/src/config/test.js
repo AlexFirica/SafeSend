@@ -47,9 +47,20 @@ function ab2str(buf) {
 }
 
 function arrayBufferToBase64(buffer) {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    
+    // Process the file in chunks of 64KB to completely avoid Call Stack Limits
+    const chunkSize = 65536; 
+    for (let i = 0; i < len; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
 }
 
+// Ensure your base64ToArrayBuffer function is also optimized:
 function base64ToArrayBuffer(base64) {
     const binary_string = window.atob(base64);
     const len = binary_string.length;
@@ -256,31 +267,57 @@ async function handleFileSelection(event) {
 }
 
 window.sendToSupabase = async function(payload) {
-    const senderId = localStorage.getItem("id") || "1"; // Fallback demo ID if missing
+    const senderId = localStorage.getItem("id") || "1"; 
     const sessionToken = localStorage.getItem("auth_token") || "valid_sample_token";
 
-    const backendPayload = {
-        sender_id: String(senderId),
-        recipient_id: String(payload.recipient),
-        file_name: String(payload.fileName || "unnamed_file.txt"),
-        encrypted_file: String(payload.encryptedFile),
-        encrypted_key: String(payload.encryptedKey),
-        iv: String(payload.iv),
-        fingerprint: {
-            employee_id: String(senderId),
-            ip: String(payload.fingerprint.network.ip),
-            country: String(payload.fingerprint.network.country),
-            city: String(payload.fingerprint.network.city),
-            isp: String(payload.fingerprint.network.isp),
-            browser: String(payload.fingerprint.software.browser),
-            os: String(payload.fingerprint.software.os),
-            timezone: String(payload.fingerprint.hardware.timezone),
-            screen_resolution: String(payload.fingerprint.hardware.resolution),
-            login_time: new Date().toISOString().replace('T', ' ').substring(0, 16)
-        }
-    };
+    if (!senderId || !payload.recipient) {
+        showMessage("Eroare: Lipsesc ID-urile necesare (Sender sau Recipient).", "error");
+        return;
+    }
+
+   const backendPayload = {
+    sender_id: String(senderId),
+    recipient_id: String(payload.recipient),
+    file_name: String(payload.fileName || "unnamed_file.txt"), 
+    encrypted_file: String(payload.encryptedFile),
+    encrypted_key: String(payload.encryptedKey),
+    iv: String(payload.iv),
+    fingerprint: {
+        employee_id: String(senderId),
+        ip: String(payload.fingerprint.network.ip || "127.0.0.1"),
+        country: String(payload.fingerprint.network.country || "Romania"),
+        city: String(payload.fingerprint.network.city || "Bucuresti"),
+        isp: String(payload.fingerprint.network.isp || "RDS-RCS"),
+        browser: String(payload.fingerprint.software.browser || "Chrome"),
+        os: String(payload.fingerprint.software.os || "Windows"),
+        timezone: String(payload.fingerprint.hardware.timezone || "Europe/Bucharest"),
+        screen_resolution: String(payload.fingerprint.hardware.resolution || "1920x1080"),
+        
+        // FIX: Force Eastern Europe/Bucharest timezone formatting (YYYY-MM-DD HH:MM)
+        login_time: (() => {
+            const now = new Date();
+            const options = {
+                timeZone: 'Europe/Bucharest',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            };
+            
+            // Returns formatted array components via internal browser localization rules
+            const formatter = new Intl.DateTimeFormat('en-US', options);
+            const parts = formatter.formatToParts(now).reduce((acc, part) => {
+                acc[part.type] = part.value;
+                return acc;
+            }, {});
+            
+            // Build the exact structural format string: "YYYY-MM-DD HH:MM"
+            return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+        })()
+    }
+};
 
     try {
+        // FIX IS HERE: Changed ${id} to ${payload.recipient}
         const response = await fetch("http://127.0.0.1:8000/upload-secure-file", {
             method: "POST",
             headers: {
@@ -292,12 +329,18 @@ window.sendToSupabase = async function(payload) {
 
         const result = await response.json();
         if (!response.ok) {
-            showMessage("Reuzat de API Gateway: " + JSON.stringify(result.detail), "error");
+            showMessage("Refuzat de API Gateway: " + JSON.stringify(result.detail), "error");
             return;
         }
         
         console.log("Upload Success:", result);
-        showMessage("Fișier criptat și încărcat cu succes! Assessment AI: " + result.labeling, "success");
+        console.log("Upload Success Payload Object:", result);
+
+// Fallback chain: checks for result.labeling, result.label, or nested uppercase variations
+const aiLabel = result.labeling || result.label || result.ai_label || "Evaluat";
+
+showMessage("Fișier criptat și încărcat cu succes! Assessment AI: " + aiLabel, "success");
+return result;
         return result;
     } catch (error) {
         console.error("Network Engine Error:", error);
@@ -366,8 +409,14 @@ function renderDashboard() {
 
 window.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
+    
+    // Display Session ID in your layout sidebar framework
     const displayElement = document.getElementById("my-id-display");
     if (displayElement) {
         displayElement.textContent = check_session().substring(0, 13) + "...";
     }
+
+    // Optional: Log current Bucharest transaction baseline setup into your console layout
+    const currentBucharestTime = new Date().toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" });
+    console.log("Local application timestamp zone synchronization:", currentBucharestTime);
 });

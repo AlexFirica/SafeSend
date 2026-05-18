@@ -247,7 +247,7 @@ export async function decryptAndDownload(fileRecord) {
         const url = URL.createObjectURL(new Blob([decryptedBuffer]));
         const a   = document.createElement("a");
         a.href     = url;
-        a.download = fileRecord.file_name || "decrypted_file";
+        a.download = fileRecord.file_path || "decrypted_file";
         a.click();
         URL.revokeObjectURL(url);
 
