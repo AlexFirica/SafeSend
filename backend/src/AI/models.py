@@ -1,4 +1,3 @@
-# backend/src/AI/models.py
 from pydantic import BaseModel
 
 class FingerprintData(BaseModel):
@@ -18,6 +17,6 @@ class FileUploadPayload(BaseModel):
     recipient_id: str
     file_name: str
     encrypted_file: str
-    encrypted_key: str
+    encrypted_key: str  # <-- Must match backendPayload.encrypted_key exactly
     iv: str
     fingerprint: FingerprintData

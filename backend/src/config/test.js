@@ -1,420 +1,55 @@
-//Variabilele locale:
-//db=conexiunea cu baza de date din broswers
-//public_key
-//private_key
-//test.js
-
+// ====================================================================
+// 1. GLOBAL VARIABLES & INITIALIZATION
+// ====================================================================
 let db;
 let public_key;
-let  private_key;
-//Cerem sa ne deschida baza de date din browser
-const request = window.indexedDB.open("SafeSendDB",1);
-request.onerror=(event)=>{
-    console.error("Why didn't you allow my web app to use IndexedDB?!");
-};
-//Creaza un objectstore in baza de date numit keys, unde vom tine cheile
-request.onupgradeneeded = (event) => {
-  const db = event.target.result;
+let private_key;
 
- const objectStore = db.createObjectStore("keys");
-}
-//Daca s-a deschis cu succes bazade date
-request.onsuccess=(event)=>{
-    //Facem o conexiune cu baza de date
-    db=event.target.result;
-    // Deschidem o transzactie de citire
-    const transaction=db.transaction(["keys"],"readonly");
-    const store=transaction.objectStore("keys");
-//Facem request la private si public key sa vedem daca exista
-    const get_request=store.get("my_private_key");
-    const get_request2=store.get("my_public_key");
-    //Dupa ce sa terminat tranzactia
-    transaction.oncomplete=()=>{
-        //Verificam daca exista keile 
-        if(get_request.result && get_request2.result){
+// Initialize IndexedDB in the browser
+const request = window.indexedDB.open("SafeSendDB", 1);
+
+request.onerror = (event) => {
+    console.error("IndexedDB initialization error:", event);
+};
+
+request.onupgradeneeded = (event) => {
+    const dbInstance = event.target.result;
+    dbInstance.createObjectStore("keys");
+};
+
+request.onsuccess = (event) => {
+    db = event.target.result;
+    
+    // Check for existing keys inside a readonly transaction block
+    const transaction = db.transaction(["keys"], "readonly");
+    const store = transaction.objectStore("keys");
+    const get_request = store.get("my_private_key");
+    const get_request2 = store.get("my_public_key");
+
+    transaction.oncomplete = () => {
+        if (get_request.result && get_request2.result) {
             console.log("Identitate recuperată integral din baza de date.");
             private_key = get_request.result;
             public_key = get_request2.result;
             Export_public_key(public_key);
-        }
-        // Daca nu generam key noi
-        else {
-            console.log("Identitate inexistentă. Generăm chei noi");
+        } else {
+            console.log("Identitate inexistentă. Generăm chei noi...");
             generate_key();
         }
     };
 };
-//Transformam cheia publica din arraybuffer(biti) in string
-function ab2str(buf){
-    return String.fromCharCode.apply(null,new Uint8Array(buf));
-}
-//Trebuie sa modificam pentru baza de date:
-//
-//
-//
-//
-async function getRecipientPublicKey(id) { //Functia de a primi recipient publickey
-    console.log("Căutăm cheia pentru: " + id);
 
-    const response = await fetch(`http://localhost:3000/keys/${id}`);
-    if (!response.ok) {
-        throw new Error("Nu am găsit cheia pentru: " + id);
-    }
-
-    const data = await response.json();
-    const pemKey = data.publicKey;
-
-    // Scoatem headerele PEM si spatiile albe
-    const pemBody = pemKey
-        .replace("-----BEGIN PUBLIC KEY-----", "")
-        .replace("-----END PUBLIC KEY-----", "")
-        .replaceAll("\n", "")
-        .trim();
-
-    // Convertim Base64 -> bytes
-    const binaryKey = window.atob(pemBody);
-    const keyBuffer = new Uint8Array(binaryKey.length);
-    for (let i = 0; i < binaryKey.length; i++) {
-        keyBuffer[i] = binaryKey.charCodeAt(i);
-    }
-
-    // Importam cheia ca obiect CryptoKey utilizabil la criptare
-    const cryptoKey = await window.crypto.subtle.importKey(
-        "spki",
-        keyBuffer.buffer,
-        { name: "RSA-OAEP", hash: "SHA-256" },
-        true,
-        ["encrypt"]
-    );
-
-    return cryptoKey;
-}
-//Exportam cheia publica si o scriem in exporter key space
-async function Export_public_key(key) {
-    //Exportam keya in fortam SPKI
-    const exported= await window.crypto.subtle.exportKey("spki",key);
-    //Transformam keia din biti in string
-    const exportedAsString=ab2str(exported);
-    //Convertim stringul in BASE64(asemnator stringului)
-    const exportedAsBase64= window.btoa(exportedAsString);
-    //Scriem keya in PEM
-  const pemExported = `-----BEGIN PUBLIC KEY-----\n${exportedAsBase64}\n-----END PUBLIC KEY-----`;
-  //Scriem cheia in HTML  
-  const exportedKeyOutput=document.querySelector(".exported-key");
-    exportedKeyOutput.textContent = pemExported;
-}
-
-//Functia de generare a keylor
-async function generate_key() {
-    //Cream key in sine 
-    let keyPair = await window.crypto.subtle.generateKey(
-        {
-            name: "RSA-OAEP",
-            modulusLength: 4096,
-            publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256",
-        },
-
-        true,
-        ["encrypt", "decrypt"]
-    );
-//Afisam ca sau creat keyile
-    console.log("Obiectul KeyPair complet:", keyPair);
-    console.log("Cheia Publică:", keyPair.publicKey);
-    console.log("Cheia Privată:", keyPair.privateKey);
-//Punem cheia privata in baza de date din browser 
-const transaction=db.transaction(["keys"],"readwrite");
-const store=transaction.objectStore("keys");
-
-const save_request=store.put(keyPair.privateKey,"my_private_key");
-save_request.onsuccess=()=>{
-    console.log("Succes! Cheia privată a fost sigilată în IndexedDB.");
-};
-save_request.onerror = () => {
-        console.error("Ceva a mers prost la salvare.");
-    };
-const save_request2=store.put(keyPair.publicKey, "my_public_key");
-save_request2.onsuccess=()=>{
-    console.log("Succes! Cheia privată a fost sigilată în IndexedDB.");
-};
-save_request2.onerror=()=>{
-    console.error("Ceva a mers prost la salvare.");
-}
-
-    public_key=keyPair.publicKey;
-    private_key=keyPair.privateKey;
-//Exportam keya 
-    await Export_public_key(public_key);
-};
-
-//Functia de creare fingerprint
-async function getFingerPrint(){
-    //Language, resolution, timezone,
-    let width=screen.width;
-    let height=screen.height;
-    const language =navigator.language;
-    const timezone=Intl.DateTimeFormat().resolvedOptions();
-    const agent=navigator.userAgent;
-    let myOS;
-    let myBrowser;
-    const hour = new Date().getHours();
-
-    //Verificam ce sistem de operare foloseste
-    if(agent.includes("Windows")){
-        myOS="Windows";
-    }
-    else if(agent.includes("Android")){
-        myOS="Android";
-    }
-    else if(agent.includes("Mac")){
-        myOS="Mac";
-    }
-    else myOS="Linux";
-
-    //Verificam ce browser foloseste
-    if(agent.includes("Edg")){
-        myBrowser="Microsoft Edge";
-    }
-    else if(agent.includes("Chrome")){
-        myBrowser="Chrome";
-    }
-    else if(agent.includes("Firefox")){
-        myBrowser="Firefox";
-    }
-    else if(agent.includes("Safari")){
-        myBrowser="Safari";
-    }
-    else myBrowser="undefined";
-    //Luam IP; NETWORK SI Orasul
-    let networkData = { ip: "N/A", org: "N/A", city: "N/A" };
-    try {
-        const response = await fetch(`http://ip-api.com/json/`);
-        if(response.ok) {
-            networkData = await response.json();
-        }
-    } catch(error) {
-        console.error("Eroare la IP API:", error.message);
-    }
-
-    // Cream un session id
-    const session_id=check_session();
-
-    console.log("--- FINGERPRINT COMPLET ---");
-    console.table({
-        Ecran: `${width}x${height}`,
-        Limba: language,
-        OS: myOS,
-        Browser: myBrowser,
-        Ora: hour,
-        IP: networkData.query,
-        ISP: networkData.org,
-        Locatie: networkData.city,
-        SessionID: session_id
-    });
-    //Returnam fingerprint-ul
-
-    const fingerprint = {
-        hardware: {
-            resolution: `${screen.width}x${screen.height}`,
-            language: navigator.language,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        software: {
-            os: myOS,
-            browser: myBrowser,
-            userAgent: navigator.userAgent
-        },
-        network: {
-            ip: networkData.query || "N/A",
-            isp: networkData.org || "N/A",
-            city: networkData.city || "N/A"
-        },
-        session: {
-            id: check_session(),
-            hour: new Date().getHours(),
-            timestamp: new Date().toISOString()
-        }
-    };
-
-    return fingerprint;
-}
-//Functia care ne da un session id:
-function check_session(){
-    let data=sessionStorage.getItem("my_id");
-    if(data===null){
-        console.log("We are making a session id right now");
-        let newid=self.crypto.randomUUID();//Genereaza un sesion id criptat
-        sessionStorage.setItem("my_id",newid);
-        return newid;
-    }
-    return data;
-}
-
-
-const fileInput = document.getElementById("fileInput");
-const messageDisplay = document.getElementById("message");
-
-document.getElementById("sendBtn").addEventListener("click", () => {
-    if (!fileInput.files[0]) {
-        showMessage("Selectează un fișier mai întâi!", "error");
-        return;
-    }
-    if (!document.getElementById("recipientSelect").value) {
-        showMessage("Selectează un destinatar!", "error");
-        return;
-    }
-    handleFileSelection({ target: fileInput });
-});
-
-function handleFileSelection(event) {
-    const file = event.target.files[0];
-    document.getElementById("file-name-display").textContent = file?.name || "Niciun fișier selectat";
-    // Resetăm display-ul
-    messageDisplay.textContent = "";
-
-    if (!file) {
-        showMessage("No file selected. Please choose a file.", "error");
-        return;
-    }
-
-    const reader = new FileReader();
-
-    // DEFINIM ce se întâmplă când citirea e gata
-    reader.onload = async () => {
-        const filebuffer = reader.result;
-try {
-            // 1. Criptăm fișierul cu AES
-            const AES_key = await window.crypto.subtle.generateKey(
-                { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
-            );
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            const encryptedContent = await window.crypto.subtle.encrypt(
-                { name: "AES-GCM", iv: iv }, AES_key, filebuffer
-            );
-
-            // 2. Pregătim cheia AES pentru a fi "încuiată"
-            const rawAesKey = await window.crypto.subtle.exportKey("raw", AES_key);
-        
-            // 3. LOGICA DE DESTINATAR (Pasul 2)
-            const recipientId = document.getElementById("recipientSelect").value;
-            const recipientPubKey = await window.getRecipientPublicKey(recipientId);
-
-            // 4. Încuiem cheia AES cu cheia RSA a destinatarului
-            const encryptedAesKey = await window.crypto.subtle.encrypt(
-                { name: "RSA-OAEP" }, recipientPubKey, rawAesKey
-            );
-
-            // 5. Luăm amprenta (Pasul 1)
-            const userFingerprint = await getFingerPrint(); 
-
-            // 6. CREĂM PACHETUL FINAL
-            const finalPayload = {
-                recipient: recipientId,
-                fileName: file.name,
-                encryptedFile: arrayBufferToBase64(encryptedContent),
-                encryptedKey: arrayBufferToBase64(encryptedAesKey),
-                iv: arrayBufferToBase64(iv),
-                fingerprint: userFingerprint
-            };
-
-            console.log("🚀 TOTUL ESTE GATA:", finalPayload);
-            await window.sendToSupabase(finalPayload);
-            showMessage("Succes! Fișierul a fost criptat și amprentat.", "success");
-
-        } catch (err) {
-            console.error(err);
-            showMessage("Eroare la procesare!", "error");
-        }
-    }; // <--- Aici se închide reader.onload
-
-    // DEFINIM ce se întâmplă în caz de eroare la citire
-    reader.onerror = () => {
-        showMessage("Error reading the file. Please try again.", "error");
-    };
-
-    // PORANIM citirea
-    reader.readAsArrayBuffer(file);
-} // <--- Aici se închide handleFileSelection
-
-
-function showMessage(message, type) {
-    messageDisplay.textContent = message;
-    messageDisplay.style.color = type === "error" ? "red" : "green";
+// ====================================================================
+// 2. CRYPTOGRAPHIC UTILITIES & KEY RECOVERY
+// ====================================================================
+function ab2str(buf) {
+    return String.fromCharCode.apply(null, new Uint8Array(buf));
 }
 
 function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
-// Add or rewrite this inside your file selection script (e.g., test.js)
-
-window.sendToSupabase = async function(payload) {
-    const senderId = localStorage.getItem("id");
-    
-    // Safety check: ensure values are never missing or malformed
-    if (!senderId || !payload.recipient) {
-        alert("Eroare: Lipsesc ID-urile de autentificare (Sender/Recipient).");
-        return;
-    }
-
-    // Explicitly parse layout values matching models.FileUploadPayload 1:1
-    const backendPayload = {
-        sender_id: String(senderId),
-        recipient_id: String(payload.recipient),
-        file_name: String(payload.fileName || "unnamed_file"),
-        encrypted_file: String(payload.encryptedFile),
-        encrypted_key: String(payload.encryptedKey),
-        iv: String(payload.iv),
-        fingerprint: {
-            employee_id: String(senderId),
-            ip: String(payload.fingerprint.network.ip || "127.0.0.1"),
-            // Extract properly from network object layout parameters
-            country: String(payload.fingerprint.network.country || "Romania"), 
-            city: String(payload.fingerprint.network.city || "Unknown City"),
-            isp: String(payload.fingerprint.network.isp || "Local Provider"),
-            browser: String(payload.fingerprint.software.browser || "Unknown Browser"),
-            os: String(payload.fingerprint.software.os || "Unknown OS"),
-            timezone: String(payload.fingerprint.hardware.timezone || "Europe/Bucharest"),
-            screen_resolution: String(payload.fingerprint.hardware.resolution || "1920x1080"),
-            // Format time accurately matching your python backend parsing rules: "YYYY-MM-DD HH:MM"
-            login_time: new Date().toISOString().replace('T', ' ').substring(0, 16)
-        }
-    };
-
-    console.log("Sending payload to AI Engine:", JSON.stringify(backendPayload, null, 2));
-
-    try {
-        const response = await fetch("http://127.0.0.1:8000/upload-secure-file", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(backendPayload)
-        });
-
-        if (!response.ok) {
-            const errDetails = await response.json();
-            console.error("FastAPI Validation Details Error:", errDetails);
-            throw new Error(JSON.stringify(errDetails.detail || errDetails));
-        }
-        
-        const result = await response.json();
-        console.log("Success result:", result);
-        return result;
-
-    } catch (error) {
-        console.error("Transmission failed validation:", error);
-        alert("Eroare la procesarea backend: " + error.message);
-        throw error;
-    }
-};
-
-// Funcție necesară pentru a transforma Base64 înapoi în biți
 function base64ToArrayBuffer(base64) {
     const binary_string = window.atob(base64);
     const len = binary_string.length;
@@ -424,61 +59,315 @@ function base64ToArrayBuffer(base64) {
     }
     return bytes.buffer;
 }
-// SIMULARE
-const mockReceivedFiles = [
-    {
-        name: "Raport_Financiar.pdf",
-        sender: "Manager HR",
-        risk: "green",
-        reason: "Amprentă verificată: Dispozitiv cunoscut, locație obișnuită (Iași)."
-    },
-    {
-        name: "Update_Salarii.xlsx",
-        sender: "Contabilitate",
-        risk: "yellow",
-        reason: "Atenție: Fișier trimis din afara orelor de program (ora 23:15)."
-    },
-    {
-        name: "Document_Secret.docx",
-        sender: "Unknown",
-        risk: "red",
-        reason: "PERICOL: IP-ul de origine aparține unei rețele de tip VPN/Proxy."
+
+async function generate_key() {
+    let keyPair = await window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+
+    const transaction = db.transaction(["keys"], "readwrite");
+    const store = transaction.objectStore("keys");
+
+    store.put(keyPair.privateKey, "my_private_key");
+    store.put(keyPair.publicKey, "my_public_key");
+
+    public_key = keyPair.publicKey;
+    private_key = keyPair.privateKey;
+
+    await Export_public_key(public_key);
+}
+
+async function Export_public_key(key) {
+    const exported = await window.crypto.subtle.exportKey("spki", key);
+    const exportedAsBase64 = window.btoa(ab2str(exported));
+    const pemExported = `-----BEGIN PUBLIC KEY-----\n${exportedAsBase64}\n-----END PUBLIC KEY-----`;
+    
+    const exportedKeyOutput = document.querySelector(".exported-key");
+    if (exportedKeyOutput) exportedKeyOutput.textContent = pemExported;
+}
+
+async function getRecipientPublicKey(id) {
+    console.log("Căutăm cheia în Supabase pentru destinatarul: " + id);
+    
+    // Fetch the recipient's public key metadata profile from your database API layer
+    const response = await fetch(`http://localhost:8000/get-public-key/${id}`);
+    if (!response.ok) {
+        throw new Error("Nu am găsit cheia publică pentru utilizatorul specificat.");
     }
+
+    const data = await response.json();
+    const pemKey = data.public_key || data.publicKey;
+
+    const pemBody = pemKey
+        .replace("-----BEGIN PUBLIC KEY-----", "")
+        .replace("-----END PUBLIC KEY-----", "")
+        .replaceAll("\n", "")
+        .trim();
+
+    const keyBuffer = base64ToArrayBuffer(pemBody);
+
+    return await window.crypto.subtle.importKey(
+        "spki",
+        keyBuffer,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        true,
+        ["encrypt"]
+    );
+}
+
+function getPublicKey() {
+    return public_key;
+}
+
+// ====================================================================
+// 3. DIGITAL SIGNATURE & FINGERPRINT COLLECTION
+// ====================================================================
+function check_session() {
+    let data = sessionStorage.getItem("my_id");
+    if (data === null) {
+        let newid = self.crypto.randomUUID();
+        sessionStorage.setItem("my_id", newid);
+        return newid;
+    }
+    return data;
+}
+
+async function getFingerPrint() {
+    const agent = navigator.userAgent;
+    let myOS = "Linux";
+    let myBrowser = "Chrome";
+
+    if (agent.includes("Windows")) myOS = "Windows";
+    else if (agent.includes("Android")) myOS = "Android";
+    else if (agent.includes("Mac")) myOS = "Mac";
+
+    if (agent.includes("Edg")) myBrowser = "Microsoft Edge";
+    else if (agent.includes("Firefox")) myBrowser = "Firefox";
+    else if (agent.includes("Safari") && !agent.includes("Chrome")) myBrowser = "Safari";
+
+    let networkData = { query: "127.0.0.1", org: "Local Provider", city: "Bucuresti", country: "Romania" };
+    try {
+        const response = await fetch(`http://ip-api.com/json/`);
+        if (response.ok) {
+            networkData = await response.json();
+        }
+    } catch (error) {
+        console.error("Eroare la IP API lookup:", error.message);
+    }
+
+    return {
+        hardware: {
+            resolution: `${screen.width}x${screen.height}`,
+            language: navigator.language,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+        software: { os: myOS, browser: myBrowser },
+        network: {
+            ip: networkData.query || "127.0.0.1",
+            isp: networkData.org || "N/A",
+            city: networkData.city || "N/A",
+            country: networkData.country || "Romania"
+        },
+        session: {
+            id: check_session(),
+            hour: new Date().getHours(),
+            timestamp: new Date().toISOString()
+        }
+    };
+}
+
+// ====================================================================
+// 4. PIPELINE FILE MANIPULATION & TRANSMISSION
+// ====================================================================
+async function handleFileSelection(event) {
+    const currentFile = event.target.files[0];
+    if (!currentFile) return;
+
+    // Handle flexible layout IDs across DOM templates safely
+    const recipientSelect = document.getElementById("recipientSelect") || document.getElementById("recipient-select");
+    const recipientValue = recipientSelect?.value;
+
+    if (!recipientValue) {
+        showMessage("Eroare: Trebuie să selectezi un destinatar valabil.", "error");
+        return;
+    }
+
+    console.log("Preparing transmission pipeline for:", currentFile.name);
+    showMessage("Criptare fișier în desfășurare...", "green");
+
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        try {
+            // A. Fetch Destination Encryption Keys
+            const recipientCryptoPublicKey = await getRecipientPublicKey(recipientValue);
+
+            // B. Generate Symmetric Engine AES Key Parameters
+            const aesKey = await window.crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            const rawAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
+
+            // C. Encrypt the Symmetric Key with the Destination Public RSA Key
+            const encryptedKeyBuffer = await window.crypto.subtle.encrypt(
+                { name: "RSA-OAEP" },
+                recipientCryptoPublicKey,
+                rawAesKey
+            );
+
+            // D. Encrypt Raw Binary Payload File
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encryptedFileBuffer = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                aesKey,
+                e.target.result
+            );
+
+            // E. Gather Behavioral Telemetry Fingerprint Data
+            const currentFingerprint = await getFingerPrint();
+
+            // F. Pack Transport Object Package
+            const payloadToTransmit = {
+                recipient: recipientValue,
+                fileName: currentFile.name,
+                encryptedFile: arrayBufferToBase64(encryptedFileBuffer),
+                encryptedKey: arrayBufferToBase64(encryptedKeyBuffer),
+                iv: arrayBufferToBase64(iv),
+                fingerprint: currentFingerprint
+            };
+
+            await window.sendToSupabase(payloadToTransmit);
+
+        } catch (err) {
+            console.error("Encryption pipeline failure:", err);
+            showMessage("Eroare la procesarea criptografică: " + err.message, "error");
+        }
+    };
+
+    reader.readAsArrayBuffer(currentFile);
+}
+
+window.sendToSupabase = async function(payload) {
+    const senderId = localStorage.getItem("id") || "1"; // Fallback demo ID if missing
+    const sessionToken = localStorage.getItem("auth_token") || "valid_sample_token";
+
+    const backendPayload = {
+        sender_id: String(senderId),
+        recipient_id: String(payload.recipient),
+        file_name: String(payload.fileName || "unnamed_file.txt"),
+        encrypted_file: String(payload.encryptedFile),
+        encrypted_key: String(payload.encryptedKey),
+        iv: String(payload.iv),
+        fingerprint: {
+            employee_id: String(senderId),
+            ip: String(payload.fingerprint.network.ip),
+            country: String(payload.fingerprint.network.country),
+            city: String(payload.fingerprint.network.city),
+            isp: String(payload.fingerprint.network.isp),
+            browser: String(payload.fingerprint.software.browser),
+            os: String(payload.fingerprint.software.os),
+            timezone: String(payload.fingerprint.hardware.timezone),
+            screen_resolution: String(payload.fingerprint.hardware.resolution),
+            login_time: new Date().toISOString().replace('T', ' ').substring(0, 16)
+        }
+    };
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/upload-secure-file", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": String(sessionToken)
+            },
+            body: JSON.stringify(backendPayload)
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            showMessage("Reuzat de API Gateway: " + JSON.stringify(result.detail), "error");
+            return;
+        }
+        
+        console.log("Upload Success:", result);
+        showMessage("Fișier criptat și încărcat cu succes! Assessment AI: " + result.labeling, "success");
+        return result;
+    } catch (error) {
+        console.error("Network Engine Error:", error);
+        showMessage("Eroare rețea server backend offline.", "error");
+    }
+};
+
+// ====================================================================
+// 5. UI INTERACTION & METADATA RENDERING
+// ====================================================================
+const fileInput = document.getElementById("fileInput") || document.getElementById("file-upload-input");
+const messageDisplay = document.getElementById("message");
+
+const sendBtn = document.getElementById("sendBtn");
+if (sendBtn) {
+    sendBtn.addEventListener("click", () => {
+        const targetInput = fileInput || document.getElementById("fileInput") || document.getElementById("file-upload-input");
+        const recipientSelect = document.getElementById("recipientSelect") || document.getElementById("recipient-select");
+
+        if (!targetInput?.files[0]) {
+            showMessage("Selectează un fișier mai întâi!", "error");
+            return;
+        }
+        if (!recipientSelect?.value) {
+            showMessage("Selectează un destinatar!", "error");
+            return;
+        }
+        handleFileSelection({ target: targetInput });
+    });
+}
+
+if (fileInput) {
+    fileInput.addEventListener("change", handleFileSelection);
+}
+
+function showMessage(message, type) {
+    if (!messageDisplay) return;
+    messageDisplay.textContent = message;
+    messageDisplay.style.color = type === "error" ? "#ff4d4d" : "#00ffcc";
+}
+
+// Simulated Dashboard Feed Dataset 
+const mockReceivedFiles = [
+    { name: "Raport_Financiar.pdf", sender: "Manager HR", risk: "green", reason: "Amprentă verificată: Dispozitiv cunoscut, locație obișnuită (Iași)." },
+    { name: "Update_Salarii.xlsx", sender: "Contabilitate", risk: "yellow", reason: "Atenție: Fișier trimis din afara orelor de program (ora 23:15)." },
+    { name: "Document_Secret.docx", sender: "Unknown", risk: "red", reason: "PERICOL: IP-ul de origine aparține unei rețele de tip VPN/Proxy." }
 ];
 
 function renderDashboard() {
     const grid = document.getElementById("files-grid");
-    grid.innerHTML = ""; // Curățăm grid-ul
+    if (!grid) return;
+    grid.innerHTML = "";
 
     mockReceivedFiles.forEach(file => {
         const card = document.createElement("div");
         card.className = `file-card ${file.risk}`;
-        
         card.innerHTML = `
             <h4>${file.name}</h4>
             <p><small>De la: ${file.sender}</small></p>
-            <div class="risk-reason">
-                <strong>Status AI:</strong> ${file.reason}
-            </div>
+            <div class="risk-reason"><strong>Status AI:</strong> ${file.reason}</div>
             <button class="download-btn">Decriptează & Descarcă</button>
         `;
         grid.appendChild(card);
     });
 }
 
-// Apelăm funcția când se încarcă pagina
 window.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
-    
-    // Afișăm și Session ID în sidebar pentru design
-    document.getElementById("my-id-display").textContent = check_session().substring(0, 13) + "...";
+    const displayElement = document.getElementById("my-id-display");
+    if (displayElement) {
+        displayElement.textContent = check_session().substring(0, 13) + "...";
+    }
 });
-
-
-//
-// returnare public key
-//
-
-function getPublicKey() {
-    return public_key;
-}

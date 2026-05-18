@@ -1,150 +1,100 @@
-# scorer.py
 from datetime import datetime
-
-from db import get_history, save_login
-from vpn_checker import check_ip
-from rules import RULES
-
+from db import get_history
 
 def analyze_risk(data):
-
     score = 100
     reasons = []
-
+    
+    # Extract details from payload structure
+    current_device = f"{data.browser}-{data.os}-{data.screen_resolution}"
     history = get_history(data.employee_id)
-
-    # DEVICE FINGERPRINT
-    current_device = (
-        f"{data.browser}-"
-        f"{data.os}-"
-        f"{data.screen_resolution}"
-    )
-
-    # VPN CHECK
+    
+    # 1. IP & VPN Gateway Check (Known Malicious IP / Proxy Rule)
+    # Checked upstream or via internal list helper (e.g. your 10.0.0.1 or 123.123.123.123 rule)
+    from vpn_checker import check_ip
     vpn_result = check_ip(data.ip)
-
+    
     if vpn_result["vpn"] or vpn_result["proxy"]:
+        score += -100  # Instantly drops to 0
+        reasons.append("Known Malicious IP / VPN / Proxy Node")
+        return {"label": "Red", "trust_score": max(0, score), "reasons": reasons}
 
-        score += RULES["vpn_detected"]
-
-        reasons.append("VPN or Proxy detected")
-
-    # HISTORY CHECKS
+    # 2. Evaluate History Context Matrix
     if history:
-
         last_login = history[-1]
+        last_device = f"{last_login['browser']}-{last_login['os']}-{last_login['screen_resolution']}"
+        
+        # Calculate Time Delta for Location Velocity Tracking
+        last_time = datetime.strptime(last_login["login_time"], "%Y-%m-%d %H:%M")
+        current_time = datetime.strptime(data.login_time, "%Y-%m-%d %H:%M")
+        time_difference_mins = (current_time - last_time).total_seconds() / 60
 
-        # LAST DEVICE
-        last_device = (
-            f"{last_login['browser']}-"
-            f"{last_login['os']}-"
-            f"{last_login['screen_resolution']}"
-        )
+        # Location Matrix
+        is_new_country = data.country != last_login["country"]
+        is_new_city = data.city != last_login["city"]
+        is_new_device = current_device != last_device
+        
+        # Check Impossible Travel Velocity Rule
+        if is_new_country and time_difference_mins < 360:  # Less than 6 hours between countries
+            score += -70
+            reasons.append("New Country (Impossible Travel)")
+        elif is_new_city and not is_new_country:
+            score += -10
+            reasons.append("New City (Same Country)")
 
-        # NEW DEVICE
-        if current_device != last_device:
+        # Hardware/Device Matrix
+        if is_new_device:
+            if data.browser != last_login["browser"]:
+                score += -20
+                reasons.append("New Browser")
+            if data.os != last_login["os"]:
+                score += -20
+                reasons.append("New Operating System")
+            if data.screen_resolution != last_login["screen_resolution"]:
+                score += -10
+                reasons.append("New Screen Resolution")
 
-            score -= 30
-
-            reasons.append("New device detected")
-
-        # COUNTRY
-        if data.country != last_login["country"]:
-
-            score += RULES["new_country"]
-
-            reasons.append("New country detected")
-
-        # CITY
-        if data.city != last_login["city"]:
-
-            score += RULES["new_city"]
-
-            reasons.append("New city detected")
-
-        # ISP
+        # Network Operator Context Rule
         if data.isp != last_login["isp"]:
+            score += -35
+            reasons.append("Unknown ISP (Public WiFi/Alternative route)")
 
-            score += RULES["unknown_isp"]
+    # 3. Working Hours Check
+    login_hour = datetime.strptime(data.login_time, "%Y-%m-%d %H:%M").hour
+    is_outside_hours = login_hour < 6 or login_hour > 22
 
-            reasons.append("Unknown ISP")
+    if is_outside_hours:
+        # Score calculation is tracked, label behavior defined below
+        reasons.append("Login outside normal work hours")
 
-        # IMPOSSIBLE TRAVEL
-        last_time = datetime.strptime(
-            last_login["login_time"],
-            "%Y-%m-%d %H:%M"
-        )
+    # Final Boundary Caps
+    score = max(0, min(100, score))
 
-        current_time = datetime.strptime(
-            data.login_time,
-            "%Y-%m-%d %H:%M"
-        )
-
-        time_difference = (
-            current_time - last_time
-        ).total_seconds() / 60
-
-        if (data.country != last_login["country"] and time_difference < 60):
-
-            score -= 80
-
-            reasons.append("Impossible travel detected")
-
-    # WORK HOURS CHECK
-    login_hour = datetime.strptime(
-        data.login_time,
-        "%Y-%m-%d %H:%M"
-    ).hour
-
-    if login_hour < 6 or login_hour > 22:
-
-        score += RULES["outside_work_hours"]
-
-        reasons.append("Login outside work hours")
-
-    # SCORE LIMITS
-    if score < 0:
-        score = 0
-
-    if score > 100:
-        score = 100
-
-    # LABEL
-    if score >= 80:
-
-        label = "Green"
-
-    elif score >= 50:
-
-        label = "Yellow"
-
+    # Determine Label Based on combined variables
+    # Matrix Rule: New device, new location, unusual time = RED
+    if history:
+        last_login = history[-1]
+        if (current_device != last_device) and (data.city != last_login["city"]) and is_outside_hours:
+            label = "Red"
+        # Matrix Rule: New Country / Malicious IP = RED
+        elif score <= 40 or "New Country (Impossible Travel)" in reasons:
+            label = "Red"
+        # Matrix Rule: New Device but same location = YELLOW, or Unknown ISP = YELLOW
+        elif score <= 79 or "Unknown ISP (Public WiFi)" in reasons or (current_device != last_device and data.city == last_login["city"]):
+            label = "Yellow"
+        # Matrix Rule: Outside work hours but same location = YELLOW
+        elif is_outside_hours and data.city == last_login["city"]:
+            label = "Yellow"
+        else:
+            label = "Green"
     else:
-
-        label = "Red"
-
-    # CONFIDENCE SCORE
-    confidence_score = max(
-        50,
-        100 - (len(reasons) * 10)
-    )
-
-    # SAVE LOGIN
-    save_login(
-        data.employee_id,
-        data.dict()
-    )
+        # No history footprint baseline: Default label based on initial raw score metric
+        if score >= 80: label = "Green"
+        elif score >= 50: label = "Yellow"
+        else: label = "Red"
 
     return {
-
-        "employee_id": data.employee_id,
-
         "label": label,
-
         "trust_score": score,
-
-        "confidence_score": confidence_score,
-
-        "reasons": reasons,
-
-        "message": "Behavioral AI analysis completed"
+        "reasons": reasons
     }

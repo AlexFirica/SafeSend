@@ -1,64 +1,71 @@
-# app.py
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware  # <--- Import CORS
+# backend/src/AI/app.py
+from fastapi import FastAPI, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware  # <--- 1. IMPORT CORS
 from models import FileUploadPayload
 from scorer import analyze_risk
 import httpx
 
 app = FastAPI()
 
-# Configure CORS so your browser frontend can talk to your backend port
+# 2. CONFIGURE CORS MIDDLEWARE (Add this block right under app = FastAPI())
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all layout origins during development
+    allow_origins=["*"],  # Allows your Live Server on port 5500 to talk to port 8000
     allow_credentials=True,
-    allow_methods=["*"],  # Allows POST, GET, OPTIONS, etc.
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows POST, OPTIONS, GET, etc.
+    allow_headers=["*"],  # Allows custom headers like Authorization
 )
 
-SUPABASE_URL = "https://hhxuvjiksyooedjzaabd.supabase.co"
-SUPABASE_KEY = "sb_publishable_ukmy9hfPGZHjHcfhfFG7jw_zJznT2Ji" 
-
-@app.get("/")
-def home():
-    return {"message": "AI Risk Engine Running"}
+# Simulated Token Verification Helper Layer
+def verify_access_token(token: str):
+    if not token or token == "null":
+        raise HTTPException(status_code=401, detail="Missing login authentication token.")
+    if "expired" in token.lower():
+        raise HTTPException(status_code=401, detail="Session Token expired. Re-authenticate.")
+    if token.startswith("fake_"):
+        raise HTTPException(status_code=403, detail="Malicious or corrupted signature footprint.")
+    return True
 
 @app.post("/upload-secure-file")
-async def upload_secure_file(payload: FileUploadPayload):
-    # 1. Evaluate file transactional fingerprints using behavioral AI Rules
+async def upload_secure_file(payload: FileUploadPayload, authorization: str = Header(None)):
+    # 1. Access Token Guard Step: If expired or fake, stop transmission immediately
+    verify_access_token(authorization)
+    
+    # 2. Risk Scoring Process
     ai_result = analyze_risk(payload.fingerprint)
     
-    # 2. Build insertion package for 'SafeSend_Files' 
+    # 3. Payload Assembly for Database Write
     supabase_payload = {
         "sender_id": int(payload.sender_id),
         "receiver_id": int(payload.recipient_id),
         "file_path": payload.file_name,
-        "encrypted_file": payload.encrypted_file,
-        "encrypted_file_key": payload.encrypted_key,
+        "encrypted_file": payload.encrypted_file,       
+        "encrypted_file_key": payload.encrypted_key,   
         "iv": payload.iv,
         "ai_label": ai_result["label"],
         "ai_risk_score": ai_result["trust_score"]
     }
     
-    # 3. Insert record directly inside database using an async HTTP client
+    # Push to Supabase File Ledger Registry table
     headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "apikey": "sb_publishable_ukmy9hfPGZHjHcfhfFG7jw_zJznT2Ji",
+        "Authorization": "Bearer sb_publishable_ukmy9hfPGZHjHcfhfFG7jw_zJznT2Ji",
         "Content-Type": "application/json",
         "Prefer": "return=minimal"
     }
     
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{SUPABASE_URL}/rest/v1/SafeSend_Files", 
-            json=[supabase_payload], 
+            "https://hhxuvjiksyooedjzaabd.supabase.co/rest/v1/SafeSend_Files",
+            json=[supabase_payload],
             headers=headers
         )
-    
-    if response.status_code not in [200, 201]:
-        raise HTTPException(status_code=400, detail=f"Supabase write error: {response.text}")
         
+    if response.status_code not in [200, 201]:
+        raise HTTPException(status_code=400, detail="Supabase structural writing mismatch error.")
+
     return {
-        "status": "success",
-        "ai_assessment": ai_result
+        "status": "Approved and saved securely",
+        "labeling": ai_result["label"],
+        "score": ai_result["trust_score"]
     }
