@@ -1,3 +1,32 @@
+
+function openKeyDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open("SafeSendDB", 1)
+        req.onupgradeneeded = e => e.target.result.createObjectStore("keys")
+        req.onsuccess = e => resolve(e.target.result)
+        req.onerror = e => reject(e)
+    })
+}
+
+async function savePrivateKeyToIDB(cryptoKey) {
+    const db = await openKeyDB()
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(["keys"], "readwrite")
+        tx.objectStore("keys").put(cryptoKey, "my_private_key")
+        tx.oncomplete = resolve
+        tx.onerror = reject
+    })
+}
+
+async function loadPrivateKeyFromIDB() {
+    const db = await openKeyDB()
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(["keys"], "readonly")
+        const req = tx.objectStore("keys").get("my_private_key")
+        req.onsuccess = () => resolve(req.result)   // returns CryptoKey directly
+        req.onerror = reject
+    })
+}
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 const url  = "https://hhxuvjiksyooedjzaabd.supabase.co" //db_manager.js
@@ -71,23 +100,22 @@ export async function generateProfile(email, password) {
             true, ["encrypt", "decrypt"]
         )
 
-        const pubBuffer  = await window.crypto.subtle.exportKey("spki",  keyPair.publicKey)
-        const privBuffer = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey)
-        const publicKeyString  = bufferToB64(pubBuffer)
-        const privateKeyString = bufferToB64(privBuffer)
+        const pubBuffer = await window.crypto.subtle.exportKey("spki", keyPair.publicKey)
+        const publicKeyString = bufferToB64(pubBuffer)
 
-        // Store private key locally — never send it anywhere sensitive
-        localStorage.setItem("private_key", privateKeyString)
+        // ✅ Store private key in IndexedDB ONLY — never exported, never sent
+        await savePrivateKeyToIDB(keyPair.privateKey)
 
+        // ✅ Only public key goes to Supabase — private_key column removed
         const { data, error } = await supabase
             .from('SafeSend_User')
-            .insert([{ email, password, public_key: publicKeyString, private_key: privateKeyString }])
+            .insert([{ email, password, public_key: publicKeyString }])
             .select()
 
         if (error) throw error
 
         const newUser = data[0]
-        localStorage.setItem("id", newUser.id)  // int8 stored as string in localStorage
+        localStorage.setItem("id", newUser.id)
 
         await saveLog(newUser.id)
         console.log("Registration complete!")
@@ -102,7 +130,7 @@ export async function generateProfile(email, password) {
 export async function login(email, password) {
     const { data, error } = await supabase
         .from('SafeSend_User')
-        .select('*')
+        .select('id, email')           // ✅ don't even select private_key
         .eq('email', email)
         .eq('password', password)
         .maybeSingle()
@@ -113,7 +141,7 @@ export async function login(email, password) {
     }
 
     localStorage.setItem("id", data.id)
-    localStorage.setItem("private_key", data.private_key)  // reload key on login
+    // ✅ No private key loaded from server — it lives in IndexedDB on this device
     await saveLog(data.id)
     console.log("Login successful")
     return true
@@ -215,45 +243,43 @@ export async function loadReceivedFiles() {
 }
 export async function decryptAndDownload(fileRecord) {
     try {
-        const privateKeyB64 = localStorage.getItem("private_key");
-        if (!privateKeyB64) throw new Error("Private key is missing!");
+        // ✅ Load directly as CryptoKey — no base64, no importKey needed
+        const privateKey = await loadPrivateKeyFromIDB()
+        if (!privateKey) throw new Error(
+            "Private key not found on this device. " +
+            "You must be on the same device and browser you registered with."
+        )
 
-        const privateKey = await window.crypto.subtle.importKey(
-            "pkcs8",
-            base64ToArrayBuffer(privateKeyB64),
-            { name: "RSA-OAEP", hash: "SHA-256" },
-            false, ["decrypt"]
-        );
-
-        // Decrypt the AES key
         const rawAesKey = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" },
             privateKey,
             base64ToArrayBuffer(fileRecord.encrypted_file_key)
-        );
+        )
 
         const aesKey = await window.crypto.subtle.importKey(
             "raw", rawAesKey, { name: "AES-GCM" }, false, ["decrypt"]
-        );
+        )
 
-        // Decrypt the file — read directly from the DB record, no Storage download
         const decryptedBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(fileRecord.iv)) },
             aesKey,
-            base64ToArrayBuffer(fileRecord.encrypted_file)  // ← was: Storage download
-        );
+            base64ToArrayBuffer(fileRecord.encrypted_file)
+        )
 
-        // Trigger browser download
-        const url = URL.createObjectURL(new Blob([decryptedBuffer]));
-        const a   = document.createElement("a");
-        a.href     = url;
-        a.download = fileRecord.file_path || "decrypted_file";
-        a.click();
-        URL.revokeObjectURL(url);
+        const fileName = fileRecord.file_path || "decrypted_file"
+        const url = URL.createObjectURL(new Blob([decryptedBuffer]))
+        const a = document.createElement("a")
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
 
-        console.log("✅ Decrypted successfully!");
+        console.log("✅ Decrypted and downloaded:", fileName)
+
     } catch (err) {
-        console.error("❌ Decrypt error:", err);
-        alert("Error during decryption: " + err.message);
+        console.error("❌ Decrypt error:", err)
+        alert("Decryption failed: " + err.message)
     }
 }
