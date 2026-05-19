@@ -222,16 +222,20 @@ export async function loadReceivedFiles() {
 export async function decryptAndDownload(fileRecord) {
     try {
         const privateKeyB64 = localStorage.getItem("private_key");
-        if (!privateKeyB64) throw new Error("Private key is missing!");
+        if (!privateKeyB64) throw new Error("Private key missing from localStorage!");
+
+        // Normalize: strip any accidental whitespace from DB round-trip
+        const cleanB64 = privateKeyB64.replace(/\s+/g, "");
 
         const privateKey = await window.crypto.subtle.importKey(
             "pkcs8",
-            base64ToArrayBuffer(privateKeyB64),
+            base64ToArrayBuffer(cleanB64),
             { name: "RSA-OAEP", hash: "SHA-256" },
-            false, ["decrypt"]
+            false,
+            ["decrypt"]
         );
 
-        // Decrypt the AES key
+        // Decrypt the AES key using your RSA private key
         const rawAesKey = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" },
             privateKey,
@@ -239,27 +243,37 @@ export async function decryptAndDownload(fileRecord) {
         );
 
         const aesKey = await window.crypto.subtle.importKey(
-            "raw", rawAesKey, { name: "AES-GCM" }, false, ["decrypt"]
+            "raw",
+            rawAesKey,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
         );
 
-        // Decrypt the file — read directly from the DB record, no Storage download
+        // Decrypt the actual file content
         const decryptedBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(fileRecord.iv)) },
             aesKey,
-            base64ToArrayBuffer(fileRecord.encrypted_file)  // ← was: Storage download
+            base64ToArrayBuffer(fileRecord.encrypted_file)
         );
 
-        // Trigger browser download
+        // Use file_path as the filename (it stores the original name from app.py)
+        const fileName = fileRecord.file_path || "decrypted_file";
+
         const url = URL.createObjectURL(new Blob([decryptedBuffer]));
-        const a   = document.createElement("a");
-        a.href     = url;
-        a.download = fileRecord.file_name || "decrypted_file";
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        console.log("✅ Decrypted successfully!");
+        console.log("✅ Decrypted and downloaded:", fileName);
+
     } catch (err) {
         console.error("❌ Decrypt error:", err);
-        alert("Error during decryption: " + err.message);
+        // Surface the real error to the user
+        alert("Decryption failed: " + err.message + "\n\nThis usually means the private key in your browser doesn't match the one used to encrypt this file.");
     }
-} 
+}

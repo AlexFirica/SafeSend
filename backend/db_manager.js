@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-const url  = "https://hhxuvjiksyooedjzaabd.supabase.co"
+const url  = "https://hhxuvjiksyooedjzaabd.supabase.co" //db_manager.js
 const anon = 'sb_publishable_ukmy9hfPGZHjHcfhfFG7jw_zJznT2Ji'
 const supabase = createClient(url, anon)
 
