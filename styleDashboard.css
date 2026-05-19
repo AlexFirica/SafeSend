@@ -203,3 +203,131 @@ select, .custom-file-upload {
 .download-btn:hover {
     background-color: #1d4ed8;
 }
+
+/* ====================================================================
+   SETTINGS INTERFACE COMPONENTS & VISIBILITY UTILITIES
+   ==================================================================== */
+.hidden {
+    display: none !important;
+}
+
+.settings-section {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.settings-box {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 20px;
+    max-width: 450px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-row label {
+    font-weight: 600;
+    color: #334155;
+    font-size: 0.95rem;
+}
+
+/* Styled Dropdowns and Toggle Controls */
+.settings-box select {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    border-radius: 6px;
+    outline: none;
+    min-width: 140px;
+}
+
+.toggle-switch {
+    appearance: none;
+    width: 44px;
+    height: 24px;
+    background-color: #cbd5e1;
+    border-radius: 50px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.toggle-switch::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: white;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+}
+
+.toggle-switch:checked {
+    background-color: var(--primary-color);
+}
+
+.toggle-switch:checked::before {
+    transform: translateX(20px);
+}
+
+/* ====================================================================
+   DARK THEME VARIABLE ENGINE INTERFACE MODIFIERS
+   ==================================================================== */
+body.dark-theme {
+    --bg-color: #0f172a;
+}
+
+body.dark-theme .content h1,
+body.dark-theme .sidebar h2 {
+    color: #f8fafc;
+}
+
+body.dark-theme .send-section,
+body.dark-theme .settings-section,
+body.dark-theme .file-card {
+    background-color: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .send-section h3,
+body.dark-theme .settings-section h3,
+body.dark-theme .file-details h4,
+body.dark-theme .setting-row label {
+    color: #f1f5f9;
+}
+
+body.dark-theme .file-details p,
+body.dark-theme #file-name-display {
+    color: #94a3b8;
+}
+
+body.dark-theme select,
+body.dark-theme .settings-box select {
+    background-color: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+body.dark-theme .setting-row {
+    border-bottom-color: #334155;
+}
+
+body.dark-theme .custom-file-upload {
+    background-color: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}

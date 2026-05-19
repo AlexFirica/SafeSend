@@ -21,7 +21,7 @@ async function sendFile(e) {
 
 function handleFileSelection(event) {
     const file = event.target.files[0];
-    document.getElementById("file-name-display").textContent = file?.name || "Niciun fișier selectat";
+    document.getElementById("file-name-display").textContent = file?.name || "No file selected";
     // Resetăm display-ul
     messageDisplay.textContent = "";
 
@@ -72,11 +72,11 @@ try {
 
             console.log("🚀 TOTUL ESTE GATA:", finalPayload);
             await sendToBackend(finalPayload);
-            showMessage("Succes! Fișierul a fost criptat și amprentat.", "success");
+            showMessage("Success! The file has been encrypted and fingerprinted.", "success");
 
         } catch (err) {
             console.error(err);
-            showMessage("Eroare la procesare!", "error");
+            showMessage("Processing error!", "error");
         }
     }; // <--- Aici se închide reader.onload
 

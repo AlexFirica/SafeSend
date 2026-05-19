@@ -156,7 +156,7 @@ export async function loadRecipients() {
     if (error) { console.error("loadRecipients error:", error.message); return }
 
     const select = document.getElementById("recipientSelect")
-    select.innerHTML = '<option value="" disabled selected>Selectează Destinatar</option>'
+    select.innerHTML = '<option value="" disabled selected>Select a recipient</option>'
 
     data.forEach(user => {
         const opt = document.createElement("option")
@@ -174,7 +174,7 @@ export async function getRecipientPublicKey(recipientId) {
         .eq('id', recipientId)
         .single()
 
-    if (error || !data) throw new Error("Cheie negăsită pentru: " + recipientId)
+    if (error || !data) throw new Error("The public key was not found for: " + recipientId)
 
     const keyBuffer = base64ToArrayBuffer(data.public_key)
     return await window.crypto.subtle.importKey(
@@ -222,7 +222,7 @@ export async function loadReceivedFiles() {
 export async function decryptAndDownload(fileRecord) {
     try {
         const privateKeyB64 = localStorage.getItem("private_key");
-        if (!privateKeyB64) throw new Error("Cheia privată lipsește!");
+        if (!privateKeyB64) throw new Error("Private key is missing!");
 
         const privateKey = await window.crypto.subtle.importKey(
             "pkcs8",
@@ -257,9 +257,9 @@ export async function decryptAndDownload(fileRecord) {
         a.click();
         URL.revokeObjectURL(url);
 
-        console.log("✅ Decriptat cu succes!");
+        console.log("✅ Decrypted successfully!");
     } catch (err) {
         console.error("❌ Decrypt error:", err);
-        alert("Eroare la decriptare: " + err.message);
+        alert("Error during decryption: " + err.message);
     }
 } 

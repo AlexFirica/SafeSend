@@ -28,12 +28,12 @@ request.onsuccess = (event) => {
 
     transaction.oncomplete = () => {
         if (get_request.result && get_request2.result) {
-            console.log("Identitate recuperată integral din baza de date.");
+            console.log("Identity retrieved successfully from the database.");
             private_key = get_request.result;
             public_key = get_request2.result;
             Export_public_key(public_key);
         } else {
-            console.log("Identitate inexistentă. Generăm chei noi...");
+            console.log("Non-existent identity. Generating new keys...");
             generate_key();
         }
     };
@@ -105,12 +105,12 @@ async function Export_public_key(key) {
 }
 
 async function getRecipientPublicKey(id) {
-    console.log("Căutăm cheia în Supabase pentru destinatarul: " + id);
+    console.log("Looking for public key into Supabase for recipient: " + id);
     
     // Fetch the recipient's public key metadata profile from your database API layer
     const response = await fetch(`http://localhost:8000/get-public-key/${id}`);
     if (!response.ok) {
-        throw new Error("Nu am găsit cheia publică pentru utilizatorul specificat.");
+        throw new Error("Error: Public key not found for the specified user.");
     }
 
     const data = await response.json();
@@ -170,7 +170,7 @@ async function getFingerPrint() {
             networkData = await response.json();
         }
     } catch (error) {
-        console.error("Eroare la IP API lookup:", error.message);
+        console.error("Error during IP API lookup:", error.message);
     }
 
     return {
@@ -206,12 +206,12 @@ async function handleFileSelection(event) {
     const recipientValue = recipientSelect?.value;
 
     if (!recipientValue) {
-        showMessage("Eroare: Trebuie să selectezi un destinatar valabil.", "error");
+        showMessage("Error: You must select a valid recipient.", "error");
         return;
     }
 
     console.log("Preparing transmission pipeline for:", currentFile.name);
-    showMessage("Criptare fișier în desfășurare...", "green");
+    showMessage("Encrypting file...", "green");
 
     const reader = new FileReader();
     reader.onload = async function (e) {
@@ -259,7 +259,7 @@ async function handleFileSelection(event) {
 
         } catch (err) {
             console.error("Encryption pipeline failure:", err);
-            showMessage("Eroare la procesarea criptografică: " + err.message, "error");
+            showMessage("Error during cryptographic processing: " + err.message, "error");
         }
     };
 
@@ -271,53 +271,54 @@ window.sendToSupabase = async function(payload) {
     const sessionToken = localStorage.getItem("auth_token") || "valid_sample_token";
 
     if (!senderId || !payload.recipient) {
-        showMessage("Eroare: Lipsesc ID-urile necesare (Sender sau Recipient).", "error");
+        showMessage("Error: Missing required IDs (Sender or Recipient).", "error");
         return;
     }
 
-   const backendPayload = {
-    sender_id: String(senderId),
-    recipient_id: String(payload.recipient),
-    file_name: String(payload.fileName || "unnamed_file.txt"), 
-    encrypted_file: String(payload.encryptedFile),
-    encrypted_key: String(payload.encryptedKey),
-    iv: String(payload.iv),
-    fingerprint: {
-        employee_id: String(senderId),
-        ip: String(payload.fingerprint.network.ip || "127.0.0.1"),
-        country: String(payload.fingerprint.network.country || "Romania"),
-        city: String(payload.fingerprint.network.city || "Bucuresti"),
-        isp: String(payload.fingerprint.network.isp || "RDS-RCS"),
-        browser: String(payload.fingerprint.software.browser || "Chrome"),
-        os: String(payload.fingerprint.software.os || "Windows"),
-        timezone: String(payload.fingerprint.hardware.timezone || "Europe/Bucharest"),
-        screen_resolution: String(payload.fingerprint.hardware.resolution || "1920x1080"),
-        
-        // FIX: Force Eastern Europe/Bucharest timezone formatting (YYYY-MM-DD HH:MM)
-        login_time: (() => {
-            const now = new Date();
-            const options = {
-                timeZone: 'Europe/Bucharest',
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hour12: false
-            };
+    const backendPayload = {
+        sender_id: String(senderId),
+        recipient_id: String(payload.recipient),
+        file_name: String(payload.fileName || "unnamed_file.txt"), 
+        encrypted_file: String(payload.encryptedFile),
+        encrypted_key: String(payload.encryptedKey),
+        iv: String(payload.iv),
+        fingerprint: {
+            employee_id: String(senderId),
             
-            // Returns formatted array components via internal browser localization rules
-            const formatter = new Intl.DateTimeFormat('en-US', options);
-            const parts = formatter.formatToParts(now).reduce((acc, part) => {
-                acc[part.type] = part.value;
-                return acc;
-            }, {});
+            // FIX: Map the session id from the client-side telemetry object
+            session_id: String(payload.fingerprint?.session?.id || "N/A"),
             
-            // Build the exact structural format string: "YYYY-MM-DD HH:MM"
-            return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
-        })()
-    }
-};
+            ip: String(payload.fingerprint.network.ip || "127.0.0.1"),
+            country: String(payload.fingerprint.network.country || "Romania"),
+            city: String(payload.fingerprint.network.city || "Bucuresti"),
+            isp: String(payload.fingerprint.network.isp || "RDS-RCS"),
+            browser: String(payload.fingerprint.software.browser || "Chrome"),
+            os: String(payload.fingerprint.software.os || "Windows"),
+            timezone: String(payload.fingerprint.hardware.timezone || "Europe/Bucharest"),
+            screen_resolution: String(payload.fingerprint.hardware.resolution || "1920x1080"),
+            
+            // Force Eastern Europe/Bucharest timezone formatting (YYYY-MM-DD HH:MM)
+            login_time: (() => {
+                const now = new Date();
+                const options = {
+                    timeZone: 'Europe/Bucharest',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                };
+                
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const parts = formatter.formatToParts(now).reduce((acc, part) => {
+                    acc[part.type] = part.value;
+                    return acc;
+                }, {});
+                
+                return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+            })()
+        }
+    };
 
     try {
-        // FIX IS HERE: Changed ${id} to ${payload.recipient}
         const response = await fetch("http://127.0.0.1:8000/upload-secure-file", {
             method: "POST",
             headers: {
@@ -329,22 +330,17 @@ window.sendToSupabase = async function(payload) {
 
         const result = await response.json();
         if (!response.ok) {
-            showMessage("Refuzat de API Gateway: " + JSON.stringify(result.detail), "error");
+            showMessage("Refused by API Gateway: " + JSON.stringify(result.detail), "error");
             return;
         }
         
         console.log("Upload Success:", result);
-        console.log("Upload Success Payload Object:", result);
-
-// Fallback chain: checks for result.labeling, result.label, or nested uppercase variations
-const aiLabel = result.labeling || result.label || result.ai_label || "Evaluat";
-
-showMessage("Fișier criptat și încărcat cu succes! Assessment AI: " + aiLabel, "success");
-return result;
+        const aiLabel = result.labeling || result.label || result.ai_label || "Evaluat";
+        showMessage("File encrypted and uploaded successfully! AI Assessment: " + aiLabel, "success");
         return result;
     } catch (error) {
         console.error("Network Engine Error:", error);
-        showMessage("Eroare rețea server backend offline.", "error");
+        showMessage("Network error: Backend server is offline.", "error");
     }
 };
 
@@ -353,27 +349,40 @@ return result;
 // ====================================================================
 const fileInput = document.getElementById("fileInput") || document.getElementById("file-upload-input");
 const messageDisplay = document.getElementById("message");
-
 const sendBtn = document.getElementById("sendBtn");
+
+// THE BUTTON IS THE SOLE TRIGGER ENGINE NOW
 if (sendBtn) {
     sendBtn.addEventListener("click", () => {
         const targetInput = fileInput || document.getElementById("fileInput") || document.getElementById("file-upload-input");
         const recipientSelect = document.getElementById("recipientSelect") || document.getElementById("recipient-select");
 
         if (!targetInput?.files[0]) {
-            showMessage("Selectează un fișier mai întâi!", "error");
+            showMessage("Select a file first!", "error");
             return;
         }
         if (!recipientSelect?.value) {
-            showMessage("Selectează un destinatar!", "error");
+            showMessage("Select a recipient!", "error");
             return;
         }
+        
+        // Pass to process down the pipeline only when button execution fires
         handleFileSelection({ target: targetInput });
     });
 }
 
+// FIXED: Selection only updates name display parameters, it does NOT fire execution pipeline
 if (fileInput) {
-    fileInput.addEventListener("change", handleFileSelection);
+    fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        const nameDisplay = document.getElementById("file-name-display");
+        const currentLang = localStorage.getItem("app_lang") || "en";
+        
+        if (nameDisplay) {
+            nameDisplay.textContent = file ? file.name : (currentLang === "ro" ? "Niciun fișier selectat" : "No file selected");
+        }
+        console.log("File captured in staging memory. Awaiting manual send invocation click...");
+    });
 }
 
 function showMessage(message, type) {
@@ -384,9 +393,9 @@ function showMessage(message, type) {
 
 // Simulated Dashboard Feed Dataset 
 const mockReceivedFiles = [
-    { name: "Raport_Financiar.pdf", sender: "Manager HR", risk: "green", reason: "Amprentă verificată: Dispozitiv cunoscut, locație obișnuită (Iași)." },
-    { name: "Update_Salarii.xlsx", sender: "Contabilitate", risk: "yellow", reason: "Atenție: Fișier trimis din afara orelor de program (ora 23:15)." },
-    { name: "Document_Secret.docx", sender: "Unknown", risk: "red", reason: "PERICOL: IP-ul de origine aparține unei rețele de tip VPN/Proxy." }
+    { name: "Financial_raport.pdf", sender: "HR Manager", risk: "green", reason: "Verified fingerprint: Known device, common location (Iași)." },
+    { name: "Update_Salary.xlsx", sender: "Accountancy", risk: "yellow", reason: "Attention: Files sent outside office hours (time 23:15)." },
+    { name: "Secret Document.docx", sender: "Unknown", risk: "red", reason: "Danger: The original IP belongs to a VPN/Proxy network." }
 ];
 
 function renderDashboard() {
@@ -399,9 +408,9 @@ function renderDashboard() {
         card.className = `file-card ${file.risk}`;
         card.innerHTML = `
             <h4>${file.name}</h4>
-            <p><small>De la: ${file.sender}</small></p>
-            <div class="risk-reason"><strong>Status AI:</strong> ${file.reason}</div>
-            <button class="download-btn">Decriptează & Descarcă</button>
+            <p><small>From: ${file.sender}</small></p>
+            <div class="risk-reason"><strong>AI Status:</strong> ${file.reason}</div>
+            <button class="download-btn">Decrypt & Download</button>
         `;
         grid.appendChild(card);
     });
@@ -416,7 +425,6 @@ window.addEventListener('DOMContentLoaded', () => {
         displayElement.textContent = check_session().substring(0, 13) + "...";
     }
 
-    // Optional: Log current Bucharest transaction baseline setup into your console layout
     const currentBucharestTime = new Date().toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" });
     console.log("Local application timestamp zone synchronization:", currentBucharestTime);
 });
