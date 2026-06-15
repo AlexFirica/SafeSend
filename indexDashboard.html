@@ -1,60 +1,296 @@
-<!DOCTYPE html>
-<html lang="ro">
+<!DOCTYPE html> <!--index.dashboard-->
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SafeSend Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styleDashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="dashboard">
         <aside class="sidebar">
-            <h2>SafeSend</h2>
+            <h2 class="lang-title">SafeSend</h2>
             <nav>
-                <button class="nav-btn active">Dashboard</button>
-                <button class="nav-btn">Setări</button>
+                <button class="nav-btn active" id="nav-dashboard">Dashboard</button>
+                <button class="nav-btn" id="nav-settings">Settings</button>
             </nav>
-<div class="user-info">
-    <p>ID-ul tău:</p>
-    <code id="my-id-display">Se încarcă...</code>
-    <p>Cheia ta publică:</p>
-    <textarea class="exported-key" readonly rows="4"></textarea>
-</div>
+            <div class="user-info">
+                <p class="lang-your-id">Your ID:</p>
+                <code id="my-id-display">Loading...</code>
+                <p class="lang-your-key">Your public key:</p>
+                <textarea class="exported-key" readonly rows="4"></textarea>
+            </div>
         </aside>
 
         <main class="content">
             <header>
-                <h1>Fișierele mele</h1>
+                <h1 class="lang-my-files">My Files</h1>
                 <div id="message" class="status-msg"></div>
             </header>
 
-            <section class="send-section">
-                <h3>Trimite un fișier nou</h3>
+            <!-- SEND FILE SECTION (WAITS FOR MANUAL SEND CLICK) -->
+            <section class="send-section" id="main-send-section">
+                <h3 class="lang-send-title">Send a new file</h3>
                 <div class="send-controls">
                     <select id="recipientSelect">
-                        <option value="" disabled selected>Selectează Destinatar</option>
-                        <option value="angajat_it">Manager IT (Bogdan)</option>
-                        <option value="manager_hr">HR (Alina)</option>
-                        <option value="ceo_office">CEO Office</option>
+                        <option value="" disabled selected class="lang-select-recipient">Select recipient</option>
                     </select>
                     
-                    <label for="fileInput" class="custom-file-upload">
-                        Alege fișier
+                    <label for="fileInput" class="custom-file-upload lang-choose-file">
+                        Choose file
                     </label>
                     <input type="file" id="fileInput">
                     
-                    <span id="file-name-display">Niciun fișier selectat</span>
-<button id="sendBtn">Trimite</button>
+                    <span id="file-name-display" class="lang-no-file">No file selected</span>
+                    <button id="sendBtn" class="lang-send-btn">Send</button>
                 </div>
             </section>
 
+            <!-- SETTINGS CONFIGURATION PANEL -->
+            <section class="settings-section hidden" id="main-settings-section">
+                <h3 class="lang-settings-title">Application Settings</h3>
+                <div class="settings-box">
+                    <div class="setting-row">
+                        <label for="themeToggle" class="lang-theme-label">Dark Mode Interface</label>
+                        <input type="checkbox" id="themeToggle" class="toggle-switch">
+                    </div>
+                    <div class="setting-row">
+                        <label for="langSelect" class="lang-lang-label">Language / Limbă</label>
+                        <select id="langSelect">
+                            <option value="en">English</option>
+                            <option value="ro">Română</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RECEIVED FILES MATRIX GRID -->
             <section class="files-grid" id="files-grid">
-                <div class="empty-state">Nu ai primit niciun fișier încă.</div>
+                <div class="empty-state lang-empty">You haven't received any files yet.</div>
             </section>
         </main>
     </div>
+
+    <!-- Script assets integration hooks -->
     <script src="backend/src/config/test.js"></script>
+    <script src="testareid.js"></script>
     <script src="backend/src/backendAPI.js" type="application/json"></script>
+    
+    <script type="module">
+        import { loadRecipients, getRecipientPublicKey, loadReceivedFiles, decryptAndDownload } from '/db_manager.js';
+        
+        window.getRecipientPublicKey = getRecipientPublicKey;
+
+        // ====================================================================
+        // INTERNATIONALIZATION (i18n) DICTIONARY MATRIX
+        // ====================================================================
+        const translations = {
+            en: {
+                title: "SafeSend", yourId: "Your ID:", yourKey: "Your public key:", myFiles: "My Files",
+                sendTitle: "Send a new file", selectRecipient: "Select recipient", chooseFile: "Choose file",
+                noFile: "No file selected", sendBtn: "Send", settingsTitle: "Application Settings",
+                themeLabel: "Dark Mode Interface", langLabel: "Language / Limbă", empty: "You haven't received any files yet.",
+                receivedAt: "Received at: ", score: "Score: ",
+                btnDashboard: "Dashboard", btnSettings: "Settings", btnDownload: "Download"
+            },
+            ro: {
+                title: "SafeSend", yourId: "ID-ul tău:", yourKey: "Cheia ta publică:", myFiles: "Fișierele Mele",
+                sendTitle: "Trimite un fișier nou", selectRecipient: "Selectează destinatarul", chooseFile: "Alege fișierul",
+                noFile: "Niciun fișier selectat", sendBtn: "Trimite", settingsTitle: "Setări Aplicație",
+                themeLabel: "Interfață Întunecată (Dark Mode)", langLabel: "Language / Limbă", empty: "Nu ai primit niciun fișier încă.",
+                receivedAt: "Primit la: ", score: "Scor: ",
+                btnDashboard: "Dashboard", btnSettings: "Setări", btnDownload: "Descarcă"
+            }
+        };
+
+        function applyLanguage(lang) {
+            localStorage.setItem("app_lang", lang);
+            document.documentElement.lang = lang;
+            
+            const t = translations[lang];
+            document.querySelector(".lang-title").textContent = t.title;
+            document.querySelector(".lang-your-id").textContent = t.yourId;
+            document.querySelector(".lang-your-key").textContent = t.yourKey;
+            document.querySelector(".lang-my-files").textContent = t.myFiles;
+            document.querySelector(".lang-send-title").textContent = t.sendTitle;
+            document.querySelector(".lang-choose-file").textContent = t.chooseFile;
+            document.querySelector(".lang-send-btn").textContent = t.sendBtn;
+            document.querySelector(".lang-settings-title").textContent = t.settingsTitle;
+            document.querySelector(".lang-theme-label").textContent = t.themeLabel;
+            document.querySelector(".lang-lang-label").textContent = t.langLabel;
+            
+            // Instantly translate Navigation buttons
+            document.getElementById("nav-dashboard").textContent = t.btnDashboard;
+            document.getElementById("nav-settings").textContent = t.btnSettings;
+            
+            const noFileEl = document.getElementById("file-name-display");
+            if (noFileEl.textContent === translations.en.noFile || noFileEl.textContent === translations.ro.noFile) {
+                noFileEl.textContent = t.noFile;
+            }
+            
+            const defaultOpt = document.querySelector("#recipientSelect option[disabled]");
+            if (defaultOpt) defaultOpt.textContent = t.selectRecipient;
+            
+            // Re-render dashboard list to dynamically catch download button language switches
+            renderDashboard();
+        }
+
+        // ====================================================================
+        // LIFECYCLE ENGINE INITIALIZATION HANDLERS
+        // ====================================================================
+        window.addEventListener('DOMContentLoaded', async () => {
+            const fileInputElement = document.getElementById("fileInput");
+            const nameDisplay = document.getElementById("file-name-display");
+            const sendButton = document.getElementById("sendBtn");
+            const recipientSelect = document.getElementById("recipientSelect");
+
+            // 1. FILE INPUT CHANGE: Updates text display ONLY, does not trigger submission
+            fileInputElement.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                const currentLang = localStorage.getItem("app_lang") || "en";
+                nameDisplay.textContent = file ? file.name : translations[currentLang].noFile;
+            });
+
+            // 2. MANUAL SEND CLICK: Validates choices and pushes payload down pipeline execution
+            sendButton.addEventListener("click", async () => {
+                const file = fileInputElement.files[0];
+                const recipientId = recipientSelect.value;
+                const currentLang = localStorage.getItem("app_lang") || "en";
+
+                if (!file) {
+                    const noFileMsg = currentLang === "ro" ? "Eroare: Vă rugăm să alegeți un fișier mai întâi!" : "Error: Please choose a file first!";
+                    if (typeof showMessage === "function") showMessage(noFileMsg, "error"); else alert(noFileMsg);
+                    return;
+                }
+
+                if (!recipientId) {
+                    const noRecipientMsg = currentLang === "ro" ? "Eroare: Vă rugăm să selectați un destinatar!" : "Error: Please select a recipient!";
+                    if (typeof showMessage === "function") showMessage(noRecipientMsg, "error"); else alert(noRecipientMsg);
+                    return;
+                }
+
+                console.log(`Manual trigger: Dispatching "${file.name}" processing down pipeline...`);
+                if (typeof window.handleFileSelect === "function") {
+                    await window.handleFileSelect({ target: fileInputElement });
+                } else {
+                    console.error("Critical error: window.handleFileSelect pipeline is missing.");
+                }
+            });
+
+            // Theme initialization hooks
+            const savedTheme = localStorage.getItem("app_theme") || "light";
+            if (savedTheme === "dark") {
+                document.body.classList.add("dark-theme");
+                document.getElementById("themeToggle").checked = true;
+            }
+
+            // Language initialization hooks
+            const savedLang = localStorage.getItem("app_lang") || "en";
+            document.getElementById("langSelect").value = savedLang;
+            applyLanguage(savedLang);
+
+            // Listeners for adjustments in settings panel
+            document.getElementById("themeToggle").addEventListener("change", (e) => {
+                if (e.target.checked) {
+                    document.body.classList.add("dark-theme");
+                    localStorage.setItem("app_theme", "dark");
+                } else {
+                    document.body.classList.remove("dark-theme");
+                    localStorage.setItem("app_theme", "light");
+                }
+            });
+
+            document.getElementById("langSelect").addEventListener("change", (e) => {
+                applyLanguage(e.target.value);
+            });
+
+            // View router tabs navigation control handlers
+            const btnDashboard = document.getElementById("nav-dashboard");
+            const btnSettings = document.getElementById("nav-settings");
+            const secSend = document.getElementById("main-send-section");
+            const secSettings = document.getElementById("main-settings-section");
+            const secGrid = document.getElementById("files-grid");
+
+            btnDashboard.addEventListener("click", () => {
+                btnDashboard.classList.add("active");
+                btnSettings.classList.remove("active");
+                secSend.classList.remove("hidden");
+                secGrid.classList.remove("hidden");
+                secSettings.classList.add("hidden");
+                renderDashboard();
+            });
+
+            btnSettings.addEventListener("click", () => {
+                btnSettings.classList.add("active");
+                btnDashboard.classList.remove("active");
+                secSend.classList.add("hidden");
+                secGrid.classList.add("hidden");
+                secSettings.classList.remove("hidden");
+            });
+
+            await loadRecipients();
+            const myId = localStorage.getItem("id") || "N/A";
+            document.getElementById("my-id-display").textContent = myId.substring(0, 13);
+        });
+
+        // ====================================================================
+        // DYNAMIC FILE CARD ENGINE VIEW DRAW LAYER
+        // ====================================================================
+        async function renderDashboard() {
+            const grid = document.getElementById("files-grid");
+            if (grid.classList.contains("hidden")) return; 
+            grid.innerHTML = ""; 
+
+            const currentLang = localStorage.getItem("app_lang") || "en";
+            const t = translations[currentLang];
+
+            try {
+                const files = await loadReceivedFiles();
+
+                if (!files || files.length === 0) {
+                    grid.innerHTML = `<div class="empty-state">${t.empty}</div>`;
+                    return;
+                }
+
+                files.forEach(file => {
+                    const card = document.createElement("div");
+                    let riskModifier = "gray";
+                    if (file.ai_label === "Green") riskModifier = "green";
+                    if (file.ai_label === "Yellow") riskModifier = "yellow";
+                    if (file.ai_label === "Red") riskModifier = "red";
+                    
+                    card.className = `file-card ${riskModifier}`;
+                    
+                    let colorClass = "badge-gray";
+                    if (file.ai_label === "Green") colorClass = "badge-green";
+                    if (file.ai_label === "Yellow") colorClass = "badge-yellow";
+                    if (file.ai_label === "Red") colorClass = "badge-red";
+
+                    card.innerHTML = `
+                        <div class="file-info">
+                            <span class="file-icon">📄</span>
+                            <div class="file-details">
+                                <h4>${file.file_path || 'Protected File'}</h4>
+                                <p>${t.receivedAt}${new Date(file.upload_date).toLocaleString(currentLang === "ro" ? "ro-RO" : "en-US")}</p>
+                            </div>
+                        </div>
+                        <div class="security-status">
+                            <span class="badge ${colorClass}">${t.score}${file.ai_risk_score ?? 'N/A'}/100 (${file.ai_label || 'Uncertain'})</span>
+                            <button class="download-btn" id="dl-${file.file_id}">${t.btnDownload}</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+
+                    document.getElementById(`dl-${file.file_id}`).addEventListener("click", async () => {
+                        await decryptAndDownload(file);
+                    });
+                });
+            } catch (error) {
+                console.error("Dashboard render failed:", error);
+                grid.innerHTML = '<div class="empty-state" style="color: red;">Error loading files.</div>';
+            }
+        }
+    </script>
 </body>
 </html>
